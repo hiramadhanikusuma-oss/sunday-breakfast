@@ -1,0 +1,33 @@
+PANDUAN SINGKAT — LAPORAN MASUK GOOGLE DRIVE
+Email tujuan: hi.ramadhanikusuma@gmail.com
+
+1. Buka https://script.google.com dengan akun Google kamu.
+2. Klik New Project, lalu hapus kode default dan tempel seluruh isi file:
+   D:\SUNDAY\google-drive.gs
+3. Klik ikon Save.
+4. Klik Deploy → New deployment → pilih Web app.
+   - Execute as: Me
+   - Who has access: Anyone
+   Klik Deploy, izinkan akses Drive.
+5. Salin URL Web App yang muncul (akhirnya /exec).
+6. Buka Admin → Laporan → tempel URL itu di kolom "URL Apps Script Web App".
+7. Klik "Simpan Pengaturan Drive", lalu "Kirim Semua Laporan ke Drive".
+8. File CSV akan dibuat/diperbarui di folder Drive:
+   Sunday Breakfast — Laporan
+
+Catatan penting:
+- Email saja tidak cukup untuk mengupload ke Drive. Perlu izin lewat akun Google kamu (langkah 1–5). Ini dilakukan sekali saja.
+- Kalau "Anyone" tidak tersedia, pilih "Anyone with Google account" dan pastikan kamu sudah login di browser yang sama.
+- File yang dikirim: transaksi, ringkasan menu, master menu, master bahan, rincian HPP — semuanya format CSV dan bisa dibuka langsung di Google Sheets.
+- Kalau tombol kirim tidak memberi notifikasi, cek folder Drive. Browser mengirim tanpa menunggu balasan dari Apps Script.
+
+CETAK STRUK
+- Saat tombol "Bayar & Cetak Struk" ditekan, struk langsung masuk dialog print browser.
+- Pilih printer thermal yang sudah terpasang di komputer, lalu Print.
+- Di Admin → Pengaturan → Printer Struk bisa atur lebar kertas (58/80 mm), footer, dan cetak otomatis.
+- Klik "Test Print" untuk mencoba tanpa transaksi.
+
+HPP & TARGET
+- Buka Admin → HPP: isi HPP per porsi langsung di tabel, lalu Simpan HPP.
+- Aturan HPP maks, susut, pajak, dan hari buka ada di panel Aturan Perhitungan.
+- Buka Admin → Laporan → Target & Simulasi Laba: ubah target laba & biaya tetap, sistem menghitung omzet target, penjualan per hari, dan progress bulan ini.

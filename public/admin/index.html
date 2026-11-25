@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunday Breakfast — Admin</title>
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="loginView">
+  <div class="login-card">
+    <img class="login-logo" src="/assets/logo-icon.png" alt="Sunday Breakfast">
+    <h1>Admin Panel</h1>
+    <p>Kelola menu, harga, dan branding Sunday Breakfast.</p>
+    <form id="loginForm">
+      <label class="field"><span>PIN Admin</span>
+        <input class="input" id="pinInput" type="password" inputmode="numeric" placeholder="Masukkan PIN" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-dark btn-block" type="submit">Masuk →</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+    <div class="login-hint">PIN bawaan: <code>sunday123</code> — bisa diganti di menu Pengaturan</div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="appView">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <img src="/assets/logo-icon.png" alt="Sunday">
+      <div><b>SUNDAY</b><small>Admin Panel</small></div>
+    </div>
+    <nav class="sb-nav">
+      <button data-view="kasir" class="aktif">▣ <span>Kasir</span></button>
+      <button data-view="dashboard">◈ <span>Dashboard</span></button>
+      <button data-view="menu">▤ <span>Menu</span></button>
+      <button data-view="hpp">◫ <span>HPP</span></button>
+      <button data-view="simulasi">◎ <span>Simulasi Laba</span></button>
+      <button data-view="laporan">▥ <span>Laporan</span></button>
+      <button data-view="receipt">▧ <span>Receipt</span></button>
+      <button data-view="toko">✦ <span>Toko &amp; Branding</span></button>
+      <button data-view="upload">↑ <span>Aset Foto</span></button>
+      <button data-view="pengaturan">⚙ <span>Pengaturan</span></button>
+    </nav>
+    <div class="sb-foot">Sunday Breakfast © 2026<br>Mataram, NTB</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h2 id="pageTitle">Kasir</h2>
+      <div class="topbar-actions">
+        <a class="btn btn-ghost btn-sm" href="/" target="_blank">Lihat Website ↗</a>
+        <button class="btn btn-ghost btn-sm" id="btnLogout">Keluar</button>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- DASHBOARD -->
+      <section class="view" id="view-dashboard">
+        <div class="stat-grid">
+          <div class="stat-box"><b id="stMenu">0</b><span>Total menu</span></div>
+          <div class="stat-box"><b id="stKat">0</b><span>Kategori</span></div>
+          <div class="stat-box"><b id="stHabis">0</b><span>Menu habis</span></div>
+          <div class="stat-box"><b id="stFoto">0</b><span>Menu pakai foto</span></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Ringkasan Toko</h3><p>Informasi yang tampil di website pelanggan.</p></div></div>
+          <div class="form-grid" id="ringkasanToko"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Produk Unggulan</h3><p>Ditandai lewat Menu → Edit Menu → “Produk unggulan”.</p></div>
+            <button class="btn btn-dark btn-sm" data-goto="menu">Atur unggulan →</button></div>
+          <div class="unggulan-grid" id="dashUnggulan"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Menu terbaru</h3><p>6 item pertama dari daftar menu.</p></div>
+            <button class="btn btn-dark btn-sm" data-goto="menu">Kelola menu →</button></div>
+          <table class="menu-table"><thead><tr><th>Nama</th><th>Kategori</th><th>Harga</th><th>Status</th></tr></thead><tbody id="dashMenu"></tbody></table>
+        </div>
+      </section>
+
+      <!-- KASIR -->
+      <section class="view aktif" id="view-kasir">
+        <div class="kasir-grid">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Pilih Menu</h3><p>Klik produk untuk masuk keranjang.</p></div></div>
+            <div class="menu-tools">
+              <input class="input" id="kasirCari" placeholder="🔍 Cari menu...">
+              <select class="select" id="kasirKat" style="max-width:180px"></select>
+            </div>
+            <div class="produk-grid" id="kasirProduk"></div>
+          </div>
+          <div class="panel cart-panel">
+            <div class="panel-head"><div><h3>Keranjang</h3><p id="kasirInfo">Belum ada item</p></div>
+              <button class="btn btn-danger btn-sm" id="cartClear">Kosongkan</button></div>
+            <div class="cart-list" id="cartItems"><div class="cart-empty">Belum ada pesanan. Pilih menu di samping ←</div></div>
+            <div class="cart-total">
+              <div><span>Total</span><b id="cartTotal">Rp 0</b></div>
+            </div>
+            <label class="field"><span>Uang Bayar</span><input class="input" id="bayarInput" type="number" min="0" placeholder="0"></label>
+            <label class="field"><span>Metode Pembayaran</span><select class="select" id="metodeBayar"><option>Cash</option><option>QRIS</option></select></label>
+            <div class="kembalian">Kembalian: <b id="kembalian">Rp 0</b></div>
+            <button class="btn btn-accent btn-block" id="btnBayar">Bayar &amp; Cetak Struk</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- HPP -->
+      <section class="view" id="view-hpp">
+        <div class="panel">
+          <div class="panel-head"><div><h3>HPP dari Resep</h3><p>Klik “Atur Resep” untuk menghitung HPP otomatis dari bahan &amp; jumlahnya.</p></div>
+            <span class="chip" id="hppRata">Rata-rata margin 0%</span></div>
+          <table class="menu-table"><thead><tr><th>Menu</th><th>Harga Jual</th><th>HPP / porsi</th><th>Laba</th><th>Margin</th><th>Harga Saran</th><th>Aksi</th></tr></thead><tbody id="hppBody"></tbody></table>
+        </div>
+      </section>
+
+      <!-- SIMULASI LABA -->
+      <section class="view" id="view-simulasi">
+        <div class="panel sim-hero">
+          <div>
+            <span class="eyebrow">SIMULASI LABA</span>
+            <h3>Berapa omzet yang harus dicapai?</h3>
+            <p>Isi target laba. Biaya bulanan dihitung otomatis dari biaya toko dan gaji karyawan.</p>
+          </div>
+          <div class="sim-hero-angka">
+            <span>Omzet target / bulan</span>
+            <b id="simOmzetBesar">Rp 0</b>
+            <small id="simRingkas">—</small>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>1 — Target Laba</h3><p>Ubah angka target, hasilnya langsung dihitung ulang.</p></div>
+            <button class="btn btn-dark btn-sm" id="simpanTarget">Simpan Target</button></div>
+          <div class="form-grid">
+            <label class="field"><span>Target laba bersih / bulan</span><input class="input" id="targetLaba" type="number" min="0"></label>
+            <label class="field"><span>Biaya bulanan otomatis</span><input class="input" id="targetBiaya" type="number" min="0" readonly><small style="color:var(--muted);margin-top:6px;display:block">Jumlah dari Biaya Bulanan + gaji karyawan di bawah. Tidak perlu diisi.</small></label>
+          </div>
+          <div class="target-grid" id="targetGrid"></div>
+          <div class="sim-progress">
+            <div><span>Realisasi omzet bulan ini</span><b id="targetProgressTeks">0%</b></div>
+            <div class="chart-bar" style="height:12px"><i id="targetProgress" style="width:0%"></i></div>
+          </div>
+        </div>
+        <div class="dua-kolom">
+          <div class="panel">
+            <div class="panel-head"><div><h3>2 — Biaya Bulanan</h3><p>Air, listrik, wifi, keamanan, sewa ruko, dll. Sewa tahunan dibagi 12 otomatis.</p></div>
+              <span class="chip" id="biayaTotal">Rp 0 / bulan</span></div>
+            <table class="menu-table"><thead><tr><th>Nama Biaya</th><th>Jumlah</th><th>Periode</th><th>Per Bulan</th><th></th></tr></thead><tbody id="biayaBody"></tbody></table>
+            <div class="save-bar" style="justify-content:space-between">
+              <button class="btn btn-ghost" id="tambahBiaya">+ Tambah Biaya</button>
+              <button class="btn btn-dark" id="simpanBiaya">Simpan Biaya</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>3 — Karyawan &amp; Gaji</h3><p>Gaji tiap karyawan ikut masuk biaya bulanan otomatis.</p></div>
+              <span class="chip" id="gajiTotal">Rp 0 / bulan</span></div>
+            <table class="menu-table"><thead><tr><th>Nama Karyawan</th><th>Gaji / Bulan</th><th></th></tr></thead><tbody id="karyawanBody"></tbody></table>
+            <div class="save-bar" style="justify-content:space-between">
+              <button class="btn btn-ghost" id="tambahKaryawan">+ Tambah Karyawan</button>
+              <button class="btn btn-dark" id="simpanKaryawan">Simpan Karyawan</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>4 — Aturan Perhitungan</h3><p>Pengaturan kecil yang dipakai simulasi.</p></div></div>
+          <div class="form-grid">
+            <label class="field"><span>Target HPP maksimal (%)</span><input class="input" id="aturTarget" type="number" min="1" max="100"></label>
+            <label class="field"><span>Susut / waste (%)</span><input class="input" id="aturSusut" type="number" min="0" max="100"></label>
+            <label class="field"><span>Pajak UMKM (% omzet)</span><input class="input" id="aturPajak" type="number" min="0" max="100" step="0.1"></label>
+            <label class="field"><span>Hari buka / bulan</span><input class="input" id="aturHari" type="number" min="1" max="31"></label>
+          </div>
+          <div class="save-bar"><button class="btn btn-dark" id="simpanAturan">Simpan Aturan</button></div>
+        </div>
+      </section>
+
+      <!-- LAPORAN -->
+      <section class="view" id="view-laporan">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Filter Periode</h3><p>Laporan dihitung dari transaksi kasir.</p></div>
+            <button class="btn btn-dark btn-sm" id="refreshLaporan">Muat Ulang</button></div>
+          <div class="menu-tools">
+            <label class="field" style="margin:0"><span>Dari</span><input class="input" id="lapDari" type="date"></label>
+            <label class="field" style="margin:0"><span>Sampai</span><input class="input" id="lapSampai" type="date"></label>
+            <button class="btn btn-ghost" id="lapHariIni">Hari ini</button>
+            <button class="btn btn-ghost" id="lapBulanIni">Bulan ini</button>
+            <button class="btn btn-ghost" id="lapTahunIni">Tahun ini</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Ringkasan Penjualan</h3><p>Angka penting sesuai periode di atas.</p></div></div>
+          <div class="stat-grid" id="lapStats"></div>
+        </div>
+        <div class="dua-kolom">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Penjualan per Menu</h3><p>Mana yang paling laku.</p></div></div>
+            <table class="menu-table"><thead><tr><th>Menu</th><th>Terjual</th><th>Omzet</th><th>Laba</th></tr></thead><tbody id="salesItemBody"></tbody></table>
+            <div id="chartTop" class="chart-list" style="margin-top:14px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Penjualan per Pembayaran</h3><p>Cash atau QRIS.</p></div></div>
+            <table class="menu-table"><thead><tr><th>Metode</th><th>Transaksi</th><th>Omzet</th></tr></thead><tbody id="salesPaymentBody"></tbody></table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Penjualan per Waktu</h3><p id="grafikKeterangan">Pilih rentang waktu.</p></div>
+            <div class="tabs" id="grafikTabs"><button data-grafik="hari" class="aktif">Hari ini</button><button data-grafik="bulan">Bulan ini</button><button data-grafik="tahun">Tahun ini</button></div></div>
+          <div id="grafikInfo" class="grafik-info"></div>
+          <div id="grafikBars" class="time-chart"></div>
+          <h4 style="margin:18px 0 8px;font-size:.8rem">Jam penjualan hari ini</h4>
+          <div id="jamBars" class="time-chart jam"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Rincian Transaksi</h3><p id="lapJumlah">0 transaksi</p></div></div>
+          <table class="menu-table"><thead><tr><th>No Nota</th><th>Waktu</th><th>Metode</th><th>Item</th><th>Total</th><th>Laba</th></tr></thead><tbody id="lapBody"></tbody></table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Ekspor Spreadsheet</h3><p>File CSV bisa langsung dibuka di Google Sheets / Excel.</p></div></div>
+          <div class="export-grid">
+            <button class="btn btn-ghost" data-export="transaksi">⬇ Transaksi</button>
+            <button class="btn btn-ghost" data-export="ringkasan">⬇ Ringkasan Menu</button>
+            <button class="btn btn-ghost" data-export="menu">⬇ Master Menu &amp; HPP</button>
+            <button class="btn btn-ghost" data-export="resep">⬇ Rincian Resep</button>
+            <button class="btn btn-ghost" data-export="biaya">⬇ Biaya &amp; Karyawan</button>
+            <button class="btn btn-ghost" data-export="target">⬇ Target &amp; Laba</button>
+          </div>
+          <div class="gdrive-box">
+            <b>Kirim otomatis ke Google Drive</b>
+            <p>Email tujuan: <input class="input" id="driveEmail" value="hi.ramadhanikusuma@gmail.com"></p>
+            <p>URL Apps Script Web App: <input class="input" id="driveUrl" placeholder="https://script.google.com/macros/s/.../exec"></p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-dark btn-sm" id="simpanDrive">Simpan Pengaturan Drive</button>
+              <button class="btn btn-accent btn-sm" id="kirimDrive">Kirim Semua Laporan ke Drive</button>
+              <a class="btn btn-ghost btn-sm" href="/PANDUAN_GDRIVE.txt" target="_blank">Panduan setup ↗</a>
+            </div>
+            <small id="driveStatus" style="display:block;margin-top:10px;color:var(--muted)">Belum ada pengiriman.</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- MENU -->
+      <section class="view" id="view-menu">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Daftar Menu</h3><p>Tambah, edit, hapus, dan atur stok menu.</p></div>
+            <button class="btn btn-accent" id="btnTambahMenu">+ Tambah Menu</button></div>
+          <div class="menu-tools">
+            <input class="input" id="cariMenu" placeholder="🔍 Cari nama menu...">
+            <select class="select" id="filterKat" style="max-width:200px"></select>
+          </div>
+          <table class="menu-table">
+            <thead><tr><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="menuBody"></tbody>
+          </table>
+        </div>
+        <div class="save-bar"><button class="btn btn-dark" id="simpanMenu">Simpan Perubahan Menu</button></div>
+      </section>
+
+      <!-- RECEIPT -->
+      <section class="view" id="view-receipt">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Daftar Receipt</h3><p>Lihat struk yang keluar, cetak ulang, refund, atau hapus.</p></div>
+            <button class="btn btn-dark btn-sm" id="refreshReceipt">Muat Ulang</button></div>
+          <div class="stat-grid" id="receiptStats"></div>
+          <div class="menu-tools">
+            <input class="input" id="receiptCari" placeholder="🔍 Cari no nota / metode...">
+            <select class="select" id="receiptFilter" style="max-width:180px">
+              <option value="">Semua status</option><option value="aktif">Lancar</option><option value="refund">Refund</option>
+            </select>
+          </div>
+          <table class="menu-table">
+            <thead><tr><th>No Nota</th><th>Waktu</th><th>Item</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="receiptBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TOKO -->
+      <section class="view" id="view-toko">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Identitas Toko</h3><p>Muncul di header, footer, dan halaman lokasi.</p></div></div>
+          <div class="form-grid" id="formToko"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Warna Branding</h3><p>Klik swatch atau pilih warna sendiri. Berlaku setelah disimpan &amp; mode brand aktif.</p></div></div>
+          <div class="form-grid">
+            <label class="field"><span>Warna Utama</span><div class="color-row"><input type="color" id="warnaUtama"><input class="input" id="warnaUtamaHex" placeholder="#0533A8"></div>
+              <div class="swatches" id="swatchUtama"></div></label>
+            <label class="field"><span>Warna Aksen</span><div class="color-row"><input type="color" id="warnaAksen"><input class="input" id="warnaAksenHex" placeholder="#F7E018"></div>
+              <div class="swatches" id="swatchAksen"></div></label>
+          </div>
+          <div style="margin-top:18px;padding:18px;border-radius:14px;background:var(--paper)" id="brandPreview">
+            <b style="letter-spacing:-.03em">Pratinjau warna</b>
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+              <span class="chip" id="chipPreview">Brand</span>
+              <span class="btn btn-dark btn-sm" id="btnPreview">Tombol utama</span>
+              <span class="btn btn-accent btn-sm">Aksen</span>
+            </div>
+          </div>
+        </div>
+        <div class="save-bar"><button class="btn btn-dark" id="simpanToko">Simpan Toko &amp; Warna</button></div>
+      </section>
+
+      <!-- UPLOAD -->
+      <section class="view" id="view-upload">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Aset Foto</h3><p>Upload gambar ke folder website. Untuk foto produk, lebih mudah langsung klik <b>Upload</b> di Menu → Edit Menu.</p></div></div>
+          <div class="drop" id="dropArea">
+            <span>⇪</span><p>Klik atau tarik gambar ke sini (PNG / JPG / WEBP, maks 8 MB)</p>
+            <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
+          <div class="form-grid" style="margin-top:18px">
+            <label class="field"><span>Nama file</span><input class="input" id="uploadName" placeholder="misal: lumpia-bigmac"></label>
+            <label class="field"><span>Lokasi</span><select class="select" id="uploadFolder"><option value="produk">Foto produk</option><option value="hero">Foto hero</option></select></label>
+          </div>
+          <div class="preview-wrap" id="previewWrap" style="display:none">
+            <img id="previewImg" alt="Pratinjau">
+            <div style="flex:1">
+              <b style="display:block;margin-bottom:8px">Upload berhasil ✓</b>
+              <div class="copy-box"><input class="input" id="uploadUrl" readonly><button class="btn btn-ghost btn-sm" id="btnCopy">Salin</button></div>
+              <p style="color:var(--muted);font-size:.72rem;margin-top:8px">URL ini bisa ditempel di field Foto pada editor menu.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PENGATURAN -->
+      <section class="view" id="view-pengaturan">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Printer Struk</h3><p>Cetak struk langsung lewat printer yang terhubung ke komputer / printer thermal.</p></div>
+            <span class="chip aktif">Print Browser</span></div>
+          <div class="form-grid">
+            <div class="field"><span>Cetak Struk</span>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-dark btn-sm" id="btnTestPrint">Test Print</button>
+                <button class="btn btn-ghost btn-sm" id="btnPrintFallback">Cetak Contoh</button>
+              </div>
+              <small style="color:var(--muted);margin-top:8px;display:block">Saat pembayaran, struk langsung masuk antrean cetak. Pilih printer thermal di dialog print.</small>
+            </div>
+            <label class="field"><span>Lebar Kertas</span><select class="select" id="printerLebar"><option value="58">58 mm</option><option value="80">80 mm</option></select></label>
+            <label class="field"><span>Logo Header</span><input class="input" id="printerLogo" placeholder="/assets/logo-icon.png"></label>
+            <label class="field full"><span>Teks Header</span><input class="input" id="printerHeader" placeholder="SUNDAY BREAKFAST — Mataram, NTB"></label>
+            <label class="field full check-row"><input type="checkbox" id="printerAuto" checked> Cetak otomatis setelah pembayaran</label>
+            <label class="field full"><span>Teks Footer Struk</span><input class="input" id="printerFooter" placeholder="Terima kasih..."></label>
+            <div class="field full">
+              <span>Pratinjau Header</span>
+              <div class="struk-preview">
+                <img id="previewLogo" src="/assets/logo-icon.png" alt="">
+                <b id="previewHeader">SUNDAY BREAKFAST — Mataram, NTB</b>
+                <small id="previewFooter">Terima kasih sudah pesan di Sunday Breakfast!</small>
+              </div>
+            </div>
+          </div>
+          <div class="save-bar"><button class="btn btn-dark" id="simpanPrinter">Simpan Pengaturan Struk</button></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Ganti PIN Admin</h3><p>Kosongkan jika tidak ingin mengubah PIN.</p></div></div>
+          <label class="field"><span>PIN Baru (minimal 4 digit)</span><input class="input" id="pinBaru" type="password" inputmode="numeric" placeholder="PIN baru"></label>
+          <div class="save-bar"><button class="btn btn-dark" id="simpanPin">Simpan PIN</button></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>Aksi Cepat</h3></div></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a class="btn btn-ghost" href="/?brand=1" target="_blank">Lihat mode brand ↗</a>
+            <a class="btn btn-ghost" href="/api/db" target="_blank">Lihat data JSON ↗</a>
+            <button class="btn btn-danger" id="btnLogout2">Keluar dari admin</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="receiptPrint"></div>
+
+<script src="/admin/admin.js"></script>
+</body>
+</html>

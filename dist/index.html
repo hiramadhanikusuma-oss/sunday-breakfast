@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunday Breakfast — Pesan Online</title>
+<meta name="description" content="Sunday Breakfast: Lumpia, Batagor, Balls & Drinks. Pesan online, kirim ke WhatsApp. A Little Taste To Take Home.">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,500;0,600;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+
+<!-- ===== TOP STRIP ===== -->
+<div class="top-strip">
+  <span>✦ Dibuat segar setiap hari</span><span>•</span><span>Pesan via WhatsApp</span><span>•</span><span>Mataram, NTB</span>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header class="site-header" id="siteHeader">
+  <div class="container header-inner">
+    <a class="brand" href="#top">
+      <img src="/assets/logo-icon.png" alt="Sunday Breakfast" class="brand-logo">
+      <div class="brand-text">
+        <span class="brand-name">SUNDAY</span>
+        <span class="brand-sub">BREAKFAST</span>
+      </div>
+    </a>
+    <nav class="main-nav">
+      <a href="#menu">Menu</a>
+      <a href="#frozen">Frozen</a>
+      <a href="#tentang">Tentang</a>
+      <a href="#lokasi">Lokasi</a>
+    </nav>
+    <div class="header-actions">
+      <button class="btn-wa-mini" id="btnWaHeader" type="button">Pesan sekarang ↓</button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<section class="hero" id="top">
+  <canvas id="hero3d" aria-hidden="true"></canvas>
+  <div class="hero-paper"></div>
+  <div class="container hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow-pill"><b>✦</b> Sarapan favorit sejak pertama kali dibuat</div>
+      <h1 class="hero-title">
+        <span class="hero-line">SUNDAY</span>
+        <span class="hero-line"><span class="accent">BREAKFAST</span> <span class="hero-flower">✿</span></span>
+      </h1>
+      <p class="hero-desc">Lumpia renyah, batagor gurih, dan balls yang kejunya meleleh. Semua dibuat segar setiap hari — <b>bikin pagimu terasa lebih spesial.</b></p>
+      <div class="hero-cta">
+        <a href="#menu" class="btn-order">Lihat Menu <span class="arrow">→</span></a>
+        <a href="#tentang" class="btn-ghost">Kenapa kami?</a>
+      </div>
+      <div class="hero-mini">
+        <span>🥟 Lumpia</span><span>🍢 Batagor</span><span>🧀 Balls</span><span>🥤 Drinks</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-blob"></div>
+      <div class="hero-photo-wrap">
+        <img class="hero-photo" src="/assets/hero-lumpia.png" alt="Lumpia Sunday Breakfast">
+        <span class="hero-badge">★ Fresh tiap hari</span>
+        <div class="float-note"><small>Dibuat dengan</small> sepenuh hati ♥</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 100" preserveAspectRatio="none"><path d="M0,50 C360,100 1080,0 1440,50 L1440,100 L0,100 Z" fill="#FFF9E6"/></svg>
+  </div>
+</section>
+
+<!-- ===== MARQUEE ===== -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Renyahnya kerasa <i>✦</i> Gurihnya pas <i>✦</i> Bikin ketagihan <i>✦</i> Dibuat segar tiap hari <i>✦</i></span>
+    <span>Renyahnya kerasa <i>✦</i> Gurihnya pas <i>✦</i> Bikin ketagihan <i>✦</i> Dibuat segar tiap hari <i>✦</i></span>
+  </div>
+</div>
+
+<!-- ===== KATEGORI NAV ===== -->
+<nav class="kat-nav" id="katNavWrap">
+  <div class="container kat-nav-inner" id="katNav"></div>
+</nav>
+
+<!-- ===== MENU ===== -->
+<section class="section menu-section" id="menu">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">01 — MENU KAMI</span>
+        <h2>Pilih yang <em>bikin</em><br>ketagihan.</h2>
+      </div>
+      <p>Dari lumpia spesial sampai minuman segar. Semua pakai bahan pilihan dan dibuat segar setiap hari.</p>
+      <div class="section-index">01</div>
+    </div>
+    <div id="menuGrid" class="menu-list"></div>
+  </div>
+</section>
+
+<!-- ===== FROZEN BANNER ===== -->
+<section class="container" id="frozen">
+  <div class="feature-banner reveal">
+    <div class="fb-copy">
+      <span class="eyebrow">FAVORIT BANYAK ORANG</span>
+      <h3>Lumpia Frozen<br>Mix 6 Rasa.</h3>
+      <p>Mau semua rasa? Bawa pulang paket isi 6 — campur rasa sesukamu. Tinggal goreng kapan pun pengen makan.</p>
+      <a href="#menu" class="fb-btn">Pilih 6 rasa kamu →</a>
+    </div>
+    <div class="fb-visual">
+      <div class="fb-sticker">PRAKTIS<br>NO RIBET</div>
+      <img src="/assets/produk/frozen-mix.jpg" alt="Lumpia Frozen Mix Sunday Breakfast" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- ===== STATS ===== -->
+<section class="container">
+  <div class="stats reveal">
+    <div class="stat"><b>4</b><span>Kategori menu</span></div>
+    <div class="stat"><b>6</b><span>Rasa dalam 1 pack frozen</span></div>
+    <div class="stat"><b>100%</b><span>Dibuat segar setiap hari</span></div>
+  </div>
+</section>
+
+<!-- ===== TENTANG ===== -->
+<section class="section tentang-section" id="tentang">
+  <div class="container">
+    <div class="section-head reveal">
+      <div>
+        <span class="eyebrow">02 — KENAPA SUNDAY?</span>
+        <h2>Bukan cuma enak,<br><em>tapi</em> bikin nagih.</h2>
+      </div>
+      <p>Kami percaya sarapan yang baik dimulai dari bahan yang baik — dan sedikit extra love di setiap gigitan.</p>
+      <div class="section-index">02</div>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">🥟</div>
+        <h3>Fresh Setiap Hari</h3>
+        <p>Dibuat segar pagi hari dengan bahan pilihan, tanpa pengawet.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">⚡</div>
+        <h3>Cepat &amp; Praktis</h3>
+        <p>Pesan via WhatsApp, ambil sendiri atau diantar. Hemat waktu.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">💰</div>
+        <h3>Harga Bersahabat</h3>
+        <p>Kualitas premium dengan harga yang tetap ramah di kantong.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🧊</div>
+        <h3>Frozen Pack</h3>
+        <p>Bawa pulang lumpia frozen, tinggal goreng kapan pun mau.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== LOKASI ===== -->
+<section class="section lokasi-section" id="lokasi">
+  <div class="container lokasi-inner">
+    <div class="lokasi-info reveal">
+      <span class="eyebrow">03 — KUNJUNGI KAMI</span>
+      <h2>Mampir<br><em>yuk!</em></h2>
+      <ul class="info-list">
+        <li><span class="info-ico">📍</span><a id="alamatLokasi" href="#" target="_blank" rel="noopener"></a></li>
+        <li><span class="info-ico">📸</span><a id="igLokasi" href="#" target="_blank" rel="noopener"></a></li>
+        <li><span class="info-ico">💬</span><a id="waLokasi" href="#" target="_blank" rel="noopener"></a></li>
+        <li><span class="info-ico">🕐</span><span>Setiap hari, 08.00 – 21.00 WITA</span></li>
+      </ul>
+      <a id="btnWaLokasi" class="btn-primary" href="#">Chat WhatsApp ↗</a>
+    </div>
+    <div class="lokasi-map reveal">
+      <a class="map-placeholder" id="btnMaps" href="#" target="_blank" rel="noopener">
+        <div><span>🗺️</span><p>Buka lokasi di Google Maps ↗</p></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <img src="/assets/logo-icon.png" alt="Sunday Breakfast">
+      <div>
+        <div class="footer-name">SUNDAY BREAKFAST</div>
+        <div class="footer-tag">A Little Taste To Take Home</div>
+      </div>
+    </div>
+    <div class="footer-cols">
+      <div>
+        <h4>Menu</h4>
+        <a href="#menu">Lumpia</a>
+        <a href="#menu">Batagor</a>
+        <a href="#menu">Balls</a>
+        <a href="#menu">Drinks</a>
+      </div>
+      <div>
+        <h4>Info</h4>
+        <a href="#tentang">Tentang</a>
+        <a href="#lokasi">Lokasi</a>
+        <a href="#" id="footerIg">Instagram</a>
+      </div>
+      <div>
+        <h4>Pesan</h4>
+        <a href="#" id="footerWa">WhatsApp</a>
+        <a href="#frozen">Frozen Pack</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="container">© 2026 Sunday Breakfast — Dibuat dengan ♥ di Mataram</div>
+  </div>
+</footer>
+
+<!-- ===== BOTTOM ORDER BAR ===== -->
+<div class="order-panel" id="orderPanel" style="display:none">
+  <div class="op-head"><b>Pesananmu</b><button id="opTutup" aria-label="Tutup">✕</button></div>
+  <div class="op-kirim">
+    <b>Pengiriman</b>
+    <small class="op-langkah">Pilih dulu pengirimannya, lalu pesan ya 🙂</small>
+    <div class="op-kirim-pilih">
+      <label><input type="radio" name="kirim" value="ambil" checked> Ambil di toko</label>
+      <label><input type="radio" name="kirim" value="kurir"> Kirim via kurir</label>
+    </div>
+    <div id="opAlamatWrap" style="display:none">
+      <input class="op-input" id="opAlamat" placeholder="Alamat tujuan lengkap, patokan, No. HP">
+      <small>Ongkir dikonfirmasi lewat WhatsApp ya.</small>
+    </div>
+  </div>
+  <div id="opList"></div>
+</div>
+<div class="order-bar" id="orderBar" style="display:none">
+  <button class="ob-info" id="obInfo"><b id="obCount">0</b> item • <b id="obTotal">Rp 0</b><span class="ob-caret">▲</span></button>
+  <button class="ob-wa" id="obWa">Pesan via WhatsApp ↗</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/config.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/main.js"></script>
+<script type="module" src="/js/hero3d.js"></script>
+</body>
+</html>

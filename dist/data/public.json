@@ -1,0 +1,664 @@
+{
+  "settings": {
+    "nama_toko": "SUNDAY BREAKFAST",
+    "tagline": "A Little Taste To Take Home",
+    "alamat": "Jl. Cilinaya, Cilinaya, Kec. Cakranegara, Kota Mataram, NTB 83239",
+    "instagram": "@sundaybreakfast__",
+    "wa": "6281236677794",
+    "logo": "/assets/logo-icon.png",
+    "warna_utama": "#0533A8",
+    "warna_aksen": "#F7E018",
+    "kertas_nota": "58mm",
+    "markup_default": 60,
+    "susut": 5,
+    "pajak": 0.5,
+    "target_hpp": 60,
+    "hari_buka": 30,
+    "target_laba": 4900000,
+    "fixed_costs": [
+      [
+        "Sewa tempat",
+        1250000
+      ],
+      [
+        "Gaji 1 karyawan",
+        1000000
+      ],
+      [
+        "Air, keamanan & kebersihan",
+        250000
+      ],
+      [
+        "Internet / Wifi",
+        150000
+      ],
+      [
+        "Penyusutan peralatan",
+        200000
+      ],
+      [
+        "Promosi & ongkir",
+        150000
+      ]
+    ],
+    "pin_salt": "f86de10f523ebd90",
+    "pin_hash": "1f4b903be39da31869ec898f277835ff5728e5454cc13f6e3be1ea77236a8c97",
+    "printer": {
+      "nama": "",
+      "alamat": "",
+      "lebar": 58,
+      "autoprint": true,
+      "footer": "Terima kasih sudah pesan di Sunday Breakfast!",
+      "drive_url": "",
+      "drive_email": "hi.ramadhanikusuma@gmail.com",
+      "logo": "/assets/logo-icon.png",
+      "header": "SUNDAY BREAKFAST — Mataram, NTB"
+    },
+    "target_biaya": 3000000,
+    "biaya_bulanan": [
+      {
+        "nama": "Air",
+        "jumlah": 250000,
+        "periode": "bulanan"
+      },
+      {
+        "nama": "Listrik",
+        "jumlah": 400000,
+        "periode": "bulanan"
+      },
+      {
+        "nama": "Wifi / Internet",
+        "jumlah": 150000,
+        "periode": "bulanan"
+      },
+      {
+        "nama": "Keamanan & kebersihan",
+        "jumlah": 250000,
+        "periode": "bulanan"
+      },
+      {
+        "nama": "Sewa ruko",
+        "jumlah": 15000000,
+        "periode": "tahunan"
+      },
+      {
+        "nama": "Penyusutan peralatan",
+        "jumlah": 200000,
+        "periode": "bulanan"
+      },
+      {
+        "nama": "Promosi & ongkir",
+        "jumlah": 150000,
+        "periode": "bulanan"
+      }
+    ],
+    "karyawan": [
+      {
+        "nama": "Karyawan 1",
+        "gaji": 1000000
+      },
+      {
+        "nama": "Karyawan 2",
+        "gaji": 800000
+      }
+    ],
+    "maps_url": "https://maps.app.goo.gl/snt9L8pg4YCXPZhb9"
+  },
+  "menu": [
+    {
+      "id": "m_e899d50696b4",
+      "nama": "Lumpia BigMac",
+      "kategori": "Lumpia",
+      "harga": 5000,
+      "foto": "/assets/produk/BIGMAC.jpg",
+      "ikon": "",
+      "deskripsi": "Lumpia dengan isi Daging, Macaroni, Bawang Bombai dan dilumuri saos BigMac",
+      "aktif": true,
+      "habis": false,
+      "stok": 30,
+      "resep": [
+        {
+          "nama": "Kulit lumpia",
+          "qty": 1,
+          "satuan": "lembar",
+          "harga": 1200
+        },
+        {
+          "nama": "Isian BigMac",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Minyak & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2200,
+      "unggulan": true
+    },
+    {
+      "id": "m_86f40adc872e",
+      "nama": "Lumpia TastyTuna",
+      "kategori": "Lumpia",
+      "harga": 5000,
+      "foto": "/assets/produk/TASTY TUNA.jpg",
+      "ikon": "",
+      "deskripsi": "Kombinasi tuna, jagung, dan saus mayo yang unik dan creamy banget!",
+      "aktif": true,
+      "habis": false,
+      "stok": 30,
+      "resep": [
+        {
+          "nama": "Kulit lumpia",
+          "qty": 1,
+          "satuan": "lembar",
+          "harga": 1200
+        },
+        {
+          "nama": "Isian tuna mayo",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Minyak & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2200,
+      "unggulan": false
+    },
+    {
+      "id": "m_cc83ebea27d2",
+      "nama": "Lumpia CheezyMelt",
+      "kategori": "Lumpia",
+      "harga": 5000,
+      "foto": "/assets/produk/Cheezy melt.jpg",
+      "ikon": "",
+      "deskripsi": "Perpaduan ayam dan cream cheese yang gurih dan creamy",
+      "aktif": true,
+      "habis": false,
+      "stok": 30,
+      "resep": [
+        {
+          "nama": "Kulit lumpia",
+          "qty": 1,
+          "satuan": "lembar",
+          "harga": 1200
+        },
+        {
+          "nama": "Ayam + cream cheese",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Minyak & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2200,
+      "unggulan": false
+    },
+    {
+      "id": "m_2a2e257580a7",
+      "nama": "Lumpia Spicy ChickenRoll",
+      "kategori": "Lumpia",
+      "harga": 5000,
+      "foto": "/assets/produk/Spicy Chicken Roll.jpg",
+      "ikon": "",
+      "deskripsi": "Lumpia renyah berisi ayam suwir pedas khas, dibalut bumbu rempah yang menggigit!",
+      "aktif": true,
+      "habis": false,
+      "stok": 30,
+      "resep": [
+        {
+          "nama": "Kulit lumpia",
+          "qty": 1,
+          "satuan": "lembar",
+          "harga": 1200
+        },
+        {
+          "nama": "Ayam pedas",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Minyak & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2200,
+      "unggulan": false
+    },
+    {
+      "id": "m_711982961a1f",
+      "nama": "Lumpia Choco Melt",
+      "kategori": "Lumpia",
+      "harga": 5000,
+      "foto": "/assets/produk/ChocoMelt.jpg",
+      "ikon": "",
+      "deskripsi": "Lumpia crispy dengan isian pisang lembut dan lelehan coklat lumer melimpah",
+      "aktif": true,
+      "habis": false,
+      "stok": 30,
+      "resep": [
+        {
+          "nama": "Kulit lumpia",
+          "qty": 1,
+          "satuan": "lembar",
+          "harga": 1200
+        },
+        {
+          "nama": "Pisang + coklat",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Minyak & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2200,
+      "unggulan": false
+    },
+    {
+      "id": "m_f9736ba4cbf9",
+      "nama": "Lumpia Matcha Lava",
+      "kategori": "Lumpia",
+      "harga": 5000,
+      "foto": "/assets/produk/Matcha Lava.jpg",
+      "ikon": "",
+      "deskripsi": "Lumpia crispy dengan isian pisang lembut dan lelehan matcha creamy yang lumer manis",
+      "aktif": true,
+      "habis": false,
+      "stok": 30,
+      "resep": [
+        {
+          "nama": "Kulit lumpia",
+          "qty": 1,
+          "satuan": "lembar",
+          "harga": 1200
+        },
+        {
+          "nama": "Pisang + matcha",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Minyak & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2200,
+      "unggulan": false
+    },
+    {
+      "id": "m_47bdcc4bfbb9",
+      "nama": "Lumpia Frozen — Mix 6 pcs",
+      "kategori": "Lumpia Frozen",
+      "harga": 27000,
+      "foto": "/assets/produk/frozen-mix.jpg",
+      "ikon": "🧊",
+      "deskripsi": "Isi 6 lumpia beku, BEBAS pilih rasa apa aja (campur boleh)! Pilih saat tambah ke keranjang.",
+      "aktif": true,
+      "habis": false,
+      "stok": 12,
+      "resep": [
+        {
+          "nama": "Lumpia ready (1 pcs)",
+          "qty": 6,
+          "satuan": "pcs",
+          "harga": 2200
+        }
+      ],
+      "is_mix": true,
+      "hpp": 13200,
+      "unggulan": true
+    },
+    {
+      "id": "m_aae30305fee3",
+      "nama": "Batagor Goreng",
+      "kategori": "Batagor",
+      "harga": 20000,
+      "foto": "/assets/produk/BATAGOR GORENG.png",
+      "ikon": "",
+      "deskripsi": "Renyah di luar, gurih & creamy di dalam, lengkap dengan bumbu kacang.",
+      "aktif": true,
+      "habis": false,
+      "stok": 16,
+      "resep": [
+        {
+          "nama": "Ikan/ayam giling",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 5000
+        },
+        {
+          "nama": "Tepung & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 2000
+        },
+        {
+          "nama": "Bumbu kacang",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        }
+      ],
+      "hpp": 8000,
+      "unggulan": true
+    },
+    {
+      "id": "m_5f162195f142",
+      "nama": "Batagor Kuah",
+      "kategori": "Batagor",
+      "harga": 20000,
+      "foto": "/assets/produk/batagor kuah.png",
+      "ikon": "",
+      "deskripsi": "Batagor renyah dengan kuah bening gurih dan isian lembut yang nikmat.",
+      "aktif": true,
+      "habis": false,
+      "stok": 16,
+      "resep": [
+        {
+          "nama": "Ikan/ayam giling",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 5000
+        },
+        {
+          "nama": "Tepung & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 2000
+        },
+        {
+          "nama": "Kuah bening",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        }
+      ],
+      "hpp": 8000,
+      "unggulan": false
+    },
+    {
+      "id": "m_312a74b2b750",
+      "nama": "Batagor Kuah Keju",
+      "kategori": "Batagor",
+      "harga": 23000,
+      "foto": "/assets/produk/batahor kuah.jpg",
+      "ikon": "",
+      "deskripsi": "Batagor crispy dengan kuah keju creamy, gurih, dan chili oil pedas yang bikin nagih",
+      "aktif": true,
+      "habis": false,
+      "stok": 16,
+      "resep": [
+        {
+          "nama": "Ikan/ayam giling",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 5000
+        },
+        {
+          "nama": "Tepung & bumbu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 2000
+        },
+        {
+          "nama": "Kuah keju",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        },
+        {
+          "nama": "Keju",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        }
+      ],
+      "hpp": 9000,
+      "unggulan": false
+    },
+    {
+      "id": "m_386d7fc15b11",
+      "nama": "Cheesy Ball",
+      "kategori": "Balls",
+      "harga": 15000,
+      "foto": "/assets/produk/Cheesy Ball.jpg",
+      "ikon": "",
+      "deskripsi": "Camilan bola goreng dengan isian keju lembut dan gurih",
+      "aktif": true,
+      "habis": false,
+      "stok": 16,
+      "resep": [
+        {
+          "nama": "Keju mozzarella",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 3000
+        },
+        {
+          "nama": "Adonan & tepung",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 2000
+        },
+        {
+          "nama": "Minyak",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        }
+      ],
+      "hpp": 6000,
+      "unggulan": true
+    },
+    {
+      "id": "m_9ccf05bbd13d",
+      "nama": "Chicken Cheese Bomb",
+      "kategori": "Balls",
+      "harga": 5000,
+      "foto": "/assets/produk/Chicken Cheesy Bomb.jpg",
+      "ikon": "",
+      "deskripsi": "Perpaduan ayam juicy dan quick melt cheese dalam balutan crispy renyah",
+      "aktif": true,
+      "habis": false,
+      "stok": 16,
+      "resep": [
+        {
+          "nama": "Ayam giling",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1200
+        },
+        {
+          "nama": "Quick melt cheese",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 800
+        },
+        {
+          "nama": "Tepung & minyak",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 500
+        }
+      ],
+      "hpp": 2500,
+      "unggulan": false
+    },
+    {
+      "id": "m_dcb2185fa1dc",
+      "nama": "Dirty Cola",
+      "kategori": "Drinks",
+      "harga": 15000,
+      "foto": "",
+      "ikon": "🥤",
+      "deskripsi": "Cola dengan susu kental manis",
+      "aktif": true,
+      "habis": false,
+      "stok": 24,
+      "resep": [
+        {
+          "nama": "Cola / berry",
+          "qty": 1,
+          "satuan": "gelas",
+          "harga": 3500
+        },
+        {
+          "nama": "Susu kental / madu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        },
+        {
+          "nama": "Es & gelas",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 500
+        }
+      ],
+      "hpp": 5000,
+      "unggulan": false
+    },
+    {
+      "id": "m_b0658a7132b1",
+      "nama": "Berry Manuka",
+      "kategori": "Drinks",
+      "harga": 15000,
+      "foto": "",
+      "ikon": "🫐",
+      "deskripsi": "Minuman berry dengan madu manuka",
+      "aktif": true,
+      "habis": false,
+      "stok": 24,
+      "resep": [
+        {
+          "nama": "Cola / berry",
+          "qty": 1,
+          "satuan": "gelas",
+          "harga": 3500
+        },
+        {
+          "nama": "Susu kental / madu",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 1000
+        },
+        {
+          "nama": "Es & gelas",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 500
+        }
+      ],
+      "hpp": 5000,
+      "unggulan": false
+    },
+    {
+      "id": "m_843f95a020cd",
+      "nama": "Air Mineral",
+      "kategori": "Drinks",
+      "harga": 5000,
+      "foto": "",
+      "ikon": "💧",
+      "deskripsi": "Air mineral dingin",
+      "aktif": true,
+      "habis": false,
+      "stok": 24,
+      "resep": [
+        {
+          "nama": "Air mineral",
+          "qty": 1,
+          "satuan": "botol",
+          "harga": 1800
+        },
+        {
+          "nama": "Es & gelas",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 200
+        }
+      ],
+      "hpp": 2000,
+      "unggulan": false
+    },
+    {
+      "id": "m_e88fba86418f",
+      "nama": "Coca Cola",
+      "kategori": "Drinks",
+      "harga": 7000,
+      "foto": "",
+      "ikon": "🥤",
+      "deskripsi": "Coca Cola dingin",
+      "aktif": true,
+      "habis": false,
+      "stok": 24,
+      "resep": [
+        {
+          "nama": "Coca Cola",
+          "qty": 1,
+          "satuan": "kaleng",
+          "harga": 3000
+        },
+        {
+          "nama": "Es & gelas",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 500
+        }
+      ],
+      "hpp": 3500,
+      "unggulan": false
+    },
+    {
+      "id": "m_3c2130fedda5",
+      "nama": "Teh Pucuk",
+      "kategori": "Drinks",
+      "harga": 6000,
+      "foto": "",
+      "ikon": "🍵",
+      "deskripsi": "Teh pucuk dingin",
+      "aktif": true,
+      "habis": false,
+      "stok": 24,
+      "resep": [
+        {
+          "nama": "Teh pucuk",
+          "qty": 1,
+          "satuan": "botol",
+          "harga": 2200
+        },
+        {
+          "nama": "Es & gelas",
+          "qty": 1,
+          "satuan": "porsi",
+          "harga": 300
+        }
+      ],
+      "hpp": 2500,
+      "unggulan": false
+    }
+  ]
+}
