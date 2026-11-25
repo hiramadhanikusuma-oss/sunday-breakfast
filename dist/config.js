@@ -1,2 +1,1 @@
-// Frontend config (placeholder)
-window.CONFIG = { apiBase: '' };
+window.CONFIG = { apiBase: "", dataUrl: "data/public.json" };

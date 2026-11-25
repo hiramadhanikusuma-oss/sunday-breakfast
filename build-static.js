@@ -6,8 +6,13 @@ const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const DIST = path.join(ROOT, 'dist');
 
-fs.rmSync(DIST, { recursive: true, force: true });
 fs.mkdirSync(DIST, { recursive: true });
+if (fs.existsSync(DIST)) {
+  for (const name of fs.readdirSync(DIST)) {
+    if (name === '.vercel') continue;
+    fs.rmSync(path.join(DIST, name), { recursive: true, force: true });
+  }
+}
 
 fs.cpSync(PUBLIC, DIST, {
   recursive: true,
@@ -16,6 +21,11 @@ fs.cpSync(PUBLIC, DIST, {
     return !rel.split(path.sep)[0].startsWith('admin');
   }
 });
+
+fs.writeFileSync(
+  path.join(DIST, 'config.js'),
+  'window.CONFIG = { apiBase: "", dataUrl: "data/public.json" };\n'
+);
 
 const db = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'db.json'), 'utf8'));
 fs.mkdirSync(path.join(DIST, 'data'), { recursive: true });

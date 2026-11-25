@@ -8,7 +8,8 @@ function toast(msg) {
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('buka'), 2400);
 }
 async function load() {
-  try { DATA = await apiJson('/api/public'); }
+  const sumber = (window.CONFIG && window.CONFIG.dataUrl) || '/api/public';
+  try { DATA = await apiJson(sumber); }
   catch (e) {
     try { DATA = await apiJson('data/public.json'); }
     catch (e2) { toast('Gagal memuat menu: ' + e2.message); return; }
