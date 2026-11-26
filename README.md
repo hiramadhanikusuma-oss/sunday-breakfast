@@ -72,7 +72,13 @@ gradlew.bat assembleDebug
 
 APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`. Install di HP Android dengan `adb install app-debug.apk` atau copy file lalu buka (izinkan install dari sumber tidak dikenal).
 
-Build memerlukan JDK 17 dan Android SDK platform 34 + build-tools 34.0.0.
+Build memerlukan **JDK 21** (Capacitor/AGP saat ini), Android SDK platform 34 + build-tools 34.0.0. Contoh build di Windows:
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.13.10002-hotspot'
+cd android-app\android
+.\gradlew.bat assembleDebug
+```
 
 ## Catatan
 
