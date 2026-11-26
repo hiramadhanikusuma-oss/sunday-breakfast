@@ -9,8 +9,10 @@ function toast(msg) {
 }
 async function load() {
   const sumber = (window.CONFIG && window.CONFIG.dataUrl) || '/api/public';
-  try { DATA = await apiJson(sumber); }
-  catch (e) {
+  try {
+    DATA = (window.CONFIG && window.CONFIG.dataJsonp && window.apiJsonp)
+      ? await apiJsonp(sumber) : await apiJson(sumber);
+  } catch (e) {
     try { DATA = await apiJson('data/public.json'); }
     catch (e2) { toast('Gagal memuat menu: ' + e2.message); return; }
   }

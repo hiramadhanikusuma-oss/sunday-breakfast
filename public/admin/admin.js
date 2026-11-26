@@ -4,19 +4,70 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 let DB = null;
 
+/* Mode online (Google Apps Script) atau server lokal */
+const AS_MODE = !!(window.CONFIG && window.CONFIG.appsScript);
+const PUBLIC_BASE = (window.CONFIG && window.CONFIG.publicBase) || 'https://sunday-breakfast.vercel.app';
+function apiUrl(url) {
+  if (!AS_MODE) return url;
+  const base = (window.CONFIG && window.CONFIG.apiBase) || (location.origin + location.pathname);
+  const token = localStorage.getItem('sunday_token') || '';
+  return base + '?r=' + encodeURIComponent(url) + (token ? '&token=' + encodeURIComponent(token) : '');
+}
+
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('buka');
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('buka'), 2400);
 }
-async function api(url, opts) {
-  const r = await fetch(url, opts);
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+const absolutUrl = u => (AS_MODE && u && String(u).charAt(0) === '/') ? PUBLIC_BASE + String(u) : u;
+function normalisasiData(d) {
+  if (!AS_MODE || !d || !d.menu) return d;
+  (d.menu || []).forEach(m => { if (m.foto) m.foto = absolutUrl(m.foto); });
+  if (d.settings) {
+    if (d.settings.logo) d.settings.logo = absolutUrl(d.settings.logo);
+    if (d.settings.printer && d.settings.printer.logo) d.settings.printer.logo = absolutUrl(d.settings.printer.logo);
+  }
   return d;
 }
-const post = (url, data) => api(url, {
-  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-});
+function keUrlRelatif(v) {
+  if (Array.isArray(v)) return v.map(keUrlRelatif);
+  if (v && typeof v === 'object') {
+    Object.keys(v).forEach(k => { v[k] = keUrlRelatif(v[k]); });
+    return v;
+  }
+  if (typeof v === 'string' && v.indexOf(PUBLIC_BASE + '/') === 0) return v.slice(PUBLIC_BASE.length);
+  return v;
+}
+async function api(url, opts) {
+  if (AS_MODE && !opts) return postRaw(url, {});
+  const r = await fetch(apiUrl(url), opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+  if (AS_MODE && d.token) localStorage.setItem('sunday_token', d.token);
+  return normalisasiData(d);
+}
+/* Apps Script Web App selalu meng-redirect POST; kirim lewat POST lalu ambil hasil via GET /api/result */
+async function postRaw(url, data) {
+  const base = window.CONFIG.apiBase;
+  const rid = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const kirim = AS_MODE ? keUrlRelatif(JSON.parse(JSON.stringify(data || {}))) : (data || {});
+  await fetch(base, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({}, kirim, {
+      r: url, rid: rid, token: localStorage.getItem('sunday_token') || ''
+    }))
+  });
+  const res = await fetch(base + '?r=' + encodeURIComponent('/api/result?rid=' + rid));
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok || d.error) throw new Error(d.error || ('HTTP ' + res.status));
+  if (d.token) localStorage.setItem('sunday_token', d.token);
+  return normalisasiData(d);
+}
+const post = (url, data) => {
+  if (AS_MODE) return postRaw(url, data);
+  return api(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  });
+};
 
 /* ---------- AUTH ---------- */
 $('#loginForm').onsubmit = async e => {
@@ -29,6 +80,7 @@ $('#loginForm').onsubmit = async e => {
 };
 async function logout() {
   await post('/api/admin/logout', {});
+  if (AS_MODE) localStorage.removeItem('sunday_token');
   DB = null;
   $('#appView').style.display = 'none';
   $('#loginView').style.display = 'grid';
@@ -40,6 +92,14 @@ $('#btnLogout2').onclick = logout;
 async function masuk() {
   try {
     DB = await api('/api/admin/data');
+    if (AS_MODE) {
+      const absolut = u => (u && String(u).charAt(0) === '/') ? PUBLIC_BASE + String(u) : u;
+      (DB.menu || []).forEach(m => { if (m.foto) m.foto = absolut(m.foto); });
+      if (DB.settings) {
+        if (DB.settings.logo) DB.settings.logo = absolut(DB.settings.logo);
+        if (DB.settings.printer && DB.settings.printer.logo) DB.settings.printer.logo = absolut(DB.settings.printer.logo);
+      }
+    }
   } catch (e) { toast('Gagal memuat data: ' + e.message); return; }
   $('#loginView').style.display = 'none';
   $('#appView').style.display = 'block';
@@ -801,7 +861,7 @@ function renderLaporan() {
 function renderDrive() {
   const p = DB.settings.printer || {};
   $('#driveEmail').value = p.drive_email || 'hi.ramadhanikusuma@gmail.com';
-  $('#driveUrl').value = p.drive_url || '';
+  $('#driveUrl').value = p.drive_url || (window.CONFIG && window.CONFIG.driveUrl) || '';
 }
 function infoTarget() {
   const s = DB.settings;
@@ -864,7 +924,7 @@ $('#lapDari').onchange = renderLaporan;
 $('#lapSampai').onchange = renderLaporan;
 $$('[data-export]').forEach(b => b.onclick = () => {
   const q = new URLSearchParams({ jenis:b.dataset.export, dari:$('#lapDari').value, sampai:$('#lapSampai').value });
-  window.location.href = '/api/export?' + q;
+  window.location.href = apiUrl('/api/export?' + q);
 });
 $('#simpanDrive').onclick = async () => {
   const p = { ...(DB.settings.printer||{}), drive_email:$('#driveEmail').value.trim(), drive_url:$('#driveUrl').value.trim() };
@@ -880,11 +940,16 @@ $('#kirimDrive').onclick = async () => {
   for (const j of jenis) {
     try {
       const q = new URLSearchParams({ jenis:j, dari:$('#lapDari').value, sampai:$('#lapSampai').value });
-      const r = await fetch('/api/export?'+q);
+      const r = await fetch(apiUrl('/api/export?'+q));
       const csvText = await r.text();
+      const payload = { email:$('#driveEmail').value.trim(), name:'Sunday Breakfast - '+j, csv:csvText };
+      if (AS_MODE) {
+        payload.r = 'drive';
+        payload.token = localStorage.getItem('sunday_token') || '';
+      }
       await fetch(url, {
-        method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({ email:$('#driveEmail').value.trim(), name:'Sunday Breakfast - '+j, csv:csvText })
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload)
       });
       sukses++;
     } catch(e) { /* no-cors tidak bisa dibaca */ }

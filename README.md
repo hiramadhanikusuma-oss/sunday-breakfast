@@ -21,7 +21,9 @@ npm run build
 
 Hasil ada di folder `dist/`. Folder ini berisi HTML, CSS, JS, aset, dan `data/public.json` (berisi settings + menu dari `data/db.json`).
 
-Versi statis cocok untuk GitHub Pages, Vercel, atau Netlify. Admin panel tetap dijalankan lewat Node server lokal.
+Versi statis cocok untuk GitHub Pages, Vercel, atau Netlify. Website pelanggan produksi: https://sunday-breakfast.vercel.app
+
+Website pelanggan mengambil settings + menu **langsung dari Google Sheet** lewat endpoint `/api/public` (JSONP), dengan fallback ke `data/public.json` bila online gagal.
 
 ## Deploy ke Vercel
 
@@ -31,8 +33,49 @@ Dari folder `dist/`:
 vercel --prod --yes --name sunday-breakfast
 ```
 
+## Admin online (gratis) — Google Apps Script + Google Sheet
+
+Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan database Google Sheet bernama `db` (kolom `collection`, `id`, `json`). Tidak perlu hosting berbayar.
+
+URL Web App produksi:
+
+```
+https://script.google.com/macros/s/AKfycbwDPZIs3MKkrA-2NXoj_9mDwbi_19_QiLr4qSujSpMFknWAZ2vPeDmYFE4n8hNmqHSP/exec
+```
+
+- Login dengan PIN `sunday123` (bisa diganti di Pengaturan).
+- Data tersimpan di Spreadsheet "Sunday Breakfast — Database" di akun Google `hi.ramadhanikusuma@gmail.com`. ID spreadsheet disimpan di Script Properties `sunday_sheet_id`.
+- Laporan CSV bisa diekspor dan/atau disimpan otomatis ke Google Drive folder "Sunday Breakfast — Laporan".
+
+### Regenerate & deploy ulang admin online
+
+```bash
+node build-apps-script.js
+cd apps-script
+npx clasp push -f
+npx clasp deploy --description "Admin online"
+```
+
+File `apps-script/Code.gs` dan `appsscript.json` dibuat otomatis — jangan diedit manual. Setiap deploy menghasilkan URL `/exec` baru; perbarui URL di `android-app/capacitor.config.json` bila URL berubah.
+
+## APK Android (WebView, gratis)
+
+Folder `android-app/` berisi project Capacitor yang membuka URL Web App admin di atas di dalam WebView Android.
+
+```bash
+cd android-app
+npm install
+npx cap sync android
+cd android
+gradlew.bat assembleDebug
+```
+
+APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`. Install di HP Android dengan `adb install app-debug.apk` atau copy file lalu buka (izinkan install dari sumber tidak dikenal).
+
+Build memerlukan JDK 17 dan Android SDK platform 34 + build-tools 34.0.0.
+
 ## Catatan
 
-- Perubahan menu/harga dari admin tersimpan di `data/db.json`.
-- Jalankan `npm run build` ulang setelah mengubah menu agar deployment publik ikut terbarui.
+- Perubahan menu/harga dari admin online tersimpan di Google Sheet. Untuk memperbarui website pelanggan, jalankan `npm run build` ulang lalu deploy ulang `dist/`.
+- Server lokal (`node server.js`) memakai `data/db.json`; admin online memakai Google Sheet — keduanya terpisah.
 - Google Drive otomatis memerlukan URL Apps Script Web App; panduan ada di `PANDUAN_GDRIVE.txt`.

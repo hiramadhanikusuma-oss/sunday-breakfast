@@ -5,6 +5,7 @@ const path = require('path');
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const DIST = path.join(ROOT, 'dist');
+const PUBLIC_API = 'https://script.google.com/macros/s/AKfycbwDPZIs3MKkrA-2NXoj_9mDwbi_19_QiLr4qSujSpMFknWAZ2vPeDmYFE4n8hNmqHSP/exec?r=%2Fapi%2Fpublic';
 
 fs.mkdirSync(DIST, { recursive: true });
 if (fs.existsSync(DIST)) {
@@ -24,7 +25,7 @@ fs.cpSync(PUBLIC, DIST, {
 
 fs.writeFileSync(
   path.join(DIST, 'config.js'),
-  'window.CONFIG = { apiBase: "", dataUrl: "data/public.json" };\n'
+  'window.CONFIG = { apiBase: "", dataUrl: ' + JSON.stringify(PUBLIC_API) + ', dataJsonp: true };\n'
 );
 
 const db = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'db.json'), 'utf8'));
