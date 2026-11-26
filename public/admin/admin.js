@@ -605,7 +605,7 @@ function totalBiayaBulanan() { return biayaPerBulan() + gajiPerBulan(); }
 function renderBiaya() {
   biayaDraft = JSON.parse(JSON.stringify(DB.settings.biaya_bulanan || []));
   $('#biayaBody').innerHTML = biayaDraft.map((b,i) =>
-    '<tr><td><input class="input" data-b="'+i+'" data-k="nama" value="'+esc(b.nama||'')+'"></td>' +
+    '<tr><td><input class="input" data-b="'+i+'" data-k="nama" placeholder="Nama biaya" value="'+esc(b.nama||'')+'"></td>' +
     '<td><input class="input" style="width:130px" type="number" min="0" data-b="'+i+'" data-k="jumlah" value="'+Number(b.jumlah||0)+'"></td>' +
     '<td><select class="select" style="width:120px" data-b="'+i+'" data-k="periode"><option '+(b.periode!=='tahunan'?'selected':'')+' value="bulanan">Bulanan</option><option '+(b.periode==='tahunan'?'selected':'')+' value="tahunan">Tahunan</option></select></td>' +
     '<td><b>'+rp(Number(b.jumlah||0)/(b.periode==='tahunan'?12:1))+'</b></td>' +
