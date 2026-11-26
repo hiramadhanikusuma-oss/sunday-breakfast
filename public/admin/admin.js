@@ -824,6 +824,7 @@ function renderReceipt() {
       '<td><div class="row-actions">' +
       '<button class="btn btn-ghost btn-sm" data-lihat="'+esc(x.id)+'">Lihat</button>' +
       '<button class="btn btn-ghost btn-sm" data-cetak="'+esc(x.id)+'">Cetak</button>' +
+      '<button class="btn btn-accent btn-sm" data-cetak-bt="'+esc(x.id)+'">BT</button>' +
       (x.refunded ? '' : '<button class="btn btn-ghost btn-sm" data-refund="'+esc(x.id)+'">Refund</button>') +
       '<button class="btn btn-danger btn-sm" data-hapus="'+esc(x.id)+'">Hapus</button></div></td></tr>';
   }).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada receipt</td></tr>';
@@ -831,6 +832,10 @@ function renderReceipt() {
   $$('[data-cetak]').forEach(b => b.onclick = () => {
     const trx = semua.find(x => x.id === b.dataset.cetak);
     if (trx) cetakStruk(trx, false);
+  });
+  $$('[data-cetak-bt]').forEach(b => b.onclick = () => {
+    const trx = semua.find(x => x.id === b.dataset.cetakBt);
+    if (trx) cetakBluetooth(trx);
   });
   $$('[data-refund]').forEach(b => b.onclick = () => prosesRefund(b.dataset.refund));
   $$('[data-hapus]').forEach(b => b.onclick = () => prosesHapusReceipt(b.dataset.hapus));
@@ -869,10 +874,12 @@ function lihatStruk(id) {
     (trx.refund_at ? '<p class="struk-catatan">Direfund: '+new Date(trx.refund_at).toLocaleString('id-ID')+
       (trx.refund_alasan ? ' — '+esc(trx.refund_alasan) : '')+'</p>' : '') +
     '<div class="modal-foot"><button class="btn btn-ghost" id="strukTutup">Tutup</button>' +
-    '<button class="btn btn-dark" id="strukCetak">🖨 Cetak</button></div></div>';
+    '<button class="btn btn-ghost" id="strukCetakDialog">Cetak Dialog</button>' +
+    '<button class="btn btn-dark" id="strukCetak">🖨 Cetak Bluetooth</button></div></div>';
   document.body.appendChild(bg);
   $('#strukTutup').onclick = () => bg.remove();
-  $('#strukCetak').onclick = () => cetakStruk(trx, false);
+  $('#strukCetakDialog').onclick = () => cetakStruk(trx, false);
+  $('#strukCetak').onclick = () => cetakBluetooth(trx);
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
 }
 $('#refreshReceipt').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('Receipt dimuat ulang'); };
@@ -1010,6 +1017,38 @@ $('#kirimDrive').onclick = async () => {
 /* =========================================================
    CETAK STRUK (LANGSUNG KE PRINTER / PRINT DIALOG)
    ========================================================= */
+function btBridge() {
+  try {
+    return (window.SundayPrinter && window.SundayPrinter.isAvailable &&
+      window.SundayPrinter.isAvailable()) ? window.SundayPrinter : null;
+  } catch (e) { return null; }
+}
+function macPrinter() {
+  const manual = $('#printerMacManual') ? $('#printerMacManual').value.trim() : '';
+  const pilih = $('#printerMac') ? $('#printerMac').value.trim() : '';
+  const tersimpan = ((DB.settings.printer || {}).mac || '').trim();
+  return manual || pilih || tersimpan;
+}
+function bluetoothSiap() { return !!btBridge() && !!macPrinter(); }
+function kirimBluetooth(teks) {
+  return new Promise((resolve, reject) => {
+    const bridge = btBridge();
+    if (!bridge) return reject(new Error('Cetak Bluetooth hanya tersedia di APK Sunday Admin'));
+    const mac = macPrinter();
+    if (!mac) return reject(new Error('Pilih printer Bluetooth di Pengaturan dulu'));
+    const cb = 'sundayBtCb' + Math.random().toString(36).slice(2);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons')); }, 15000);
+    function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
+    window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
+    try { bridge.printText(mac, teks, cb); }
+    catch (e) { bersihkan(); reject(e); }
+  });
+}
+function cetakBluetooth(trx) {
+  kirimBluetooth(strukLines(trx).join('\n') + '\n')
+    .then(r => toast(r.ok ? '✓ ' + r.pesan : r.pesan))
+    .catch(e => toast(e.message));
+}
 function renderPrinter() {
   const p = DB.settings.printer || {};
   $('#printerLebar').value = p.lebar || 58;
@@ -1017,8 +1056,37 @@ function renderPrinter() {
   $('#printerLogo').value = p.logo || '/assets/logo-icon.png';
   $('#printerHeader').value = p.header || '';
   $('#printerFooter').value = p.footer || '';
+  const select = $('#printerMac'), hint = $('#btPrinterHint');
+  const bridge = btBridge();
+  if (bridge) {
+    let daftar = [], pesan = '';
+    try { daftar = JSON.parse(bridge.getPaired()); }
+    catch (e) { pesan = String(bridge.getPaired()); }
+    select.innerHTML = '<option value="">Pilih printer yang sudah dipasangkan</option>' +
+      daftar.map(d => '<option value="'+esc(d.mac)+'">'+esc(d.nama)+' — '+esc(d.mac)+'</option>').join('');
+    select.disabled = false;
+    $('#btnCariPrinter').disabled = false;
+    $('#btnTestBluetooth').disabled = false;
+    hint.textContent = pesan && pesan.indexOf('ERROR') === 0
+      ? pesan + '. Nyalakan Bluetooth & izinkan Nearby Devices.'
+      : (daftar.length ? 'Pilih printer di atas, lalu Simpan Pengaturan Struk.' : 'Belum ada printer terpasang. Pair dulu di Setelan Bluetooth HP.');
+  } else {
+    select.innerHTML = '<option value="">Buka di APK untuk memilih printer</option>';
+    select.disabled = true;
+    $('#btnCariPrinter').disabled = true;
+    $('#btnTestBluetooth').disabled = true;
+    hint.textContent = 'Fitur cetak langsung aktif di APK Android Sunday Admin.';
+  }
+  select.value = p.mac || '';
+  $('#printerMacManual').value = p.mac || '';
   updatePreviewStruk();
 }
+if ($('#printerMac')) $('#printerMac').onchange = e => { $('#printerMacManual').value = e.target.value; };
+if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = () => { renderPrinter(); toast('Daftar printer diperbarui'); };
+if ($('#btnTestBluetooth')) $('#btnTestBluetooth').onclick = () => {
+  cetakBluetooth({ no_nota:'TEST-BT', waktu:new Date().toISOString(), kasir:'Admin',
+    items:[{nama:'Lumpia BigMac',harga:5000,qty:1}], total:5000, bayar:5000, kembalian:0, metode:'Cash' });
+};
 function updatePreviewStruk() {
   $('#previewLogo').src = $('#printerLogo').value || '/assets/logo-icon.png';
   $('#previewHeader').textContent = $('#printerHeader').value || DB.settings.nama_toko || 'SUNDAY BREAKFAST';
@@ -1028,7 +1096,8 @@ function updatePreviewStruk() {
 $('#simpanPrinter').onclick = async () => {
   const p = { ...(DB.settings.printer||{}), lebar:Number($('#printerLebar').value),
     autoprint:$('#printerAuto').checked, logo:$('#printerLogo').value.trim(),
-    header:$('#printerHeader').value.trim(), footer:$('#printerFooter').value.trim() };
+    header:$('#printerHeader').value.trim(), footer:$('#printerFooter').value.trim(),
+    mac:macPrinter() };
   try { await post('/api/admin/save',{settings:{printer:p}}); DB.settings.printer=p; toast('✓ Pengaturan struk tersimpan'); renderPrinter(); }
   catch(e){ toast(e.message); }
 };
@@ -1088,6 +1157,7 @@ function receiptHtml(trx) {
 function cetakStruk(trx, otomatis) {
   const p = DB.settings.printer || {};
   if (otomatis && p.autoprint === false) return;
+  if (otomatis && bluetoothSiap()) { cetakBluetooth(trx); return; }
   $('#receiptPrint').innerHTML = receiptHtml(trx);
   window.print();
 }

@@ -40,7 +40,7 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbwgA3mwjI6evxE_DY1edcebRQRykr-aCDoJpbN2pElIm95PH5YVeU4fb_w4C0c0DDU8/exec
+https://script.google.com/macros/s/AKfycbxd54YdFNgvLHtSVnnyndmm00m6Sphnp0Mg_KoffeKYQIlX5e-clbxQwdSExNxgSlmA/exec
 ```
 
 - Login dengan PIN `sunday123` (bisa diganti di Pengaturan).
@@ -71,6 +71,15 @@ gradlew.bat assembleDebug
 ```
 
 APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`. Install di HP Android dengan `adb install app-debug.apk` atau copy file lalu buka (izinkan install dari sumber tidak dikenal).
+
+### Cetak struk ke printer Bluetooth (RPP02N / 58 mm)
+1. Pair printer di **Setelan Bluetooth HP** (PIN bawaan RPP02N biasanya `0000`).
+2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** saat diminta.
+3. Masuk **Pengaturan → Printer Bluetooth**, pilih nama printer yang sudah terpasang, lalu **Simpan Pengaturan Struk**.
+4. Tekan **Test Print BT** untuk memastikan struk keluar.
+5. Setelah itu, pembayaran akan otomatis cetak ke printer Bluetooth. Tombol **BT** di Receipt dan **Cetak Bluetooth** di modal struk juga tersedia.
+
+Bridge native `SundayPrinter` hanya diizinkan untuk URL Web App admin dan `localhost:3000/admin`. Fallback tetap memakai dialog print browser bila Bluetooth belum disiapkan.
 
 Build memerlukan **JDK 21** (Capacitor/AGP saat ini), Android SDK platform 34 + build-tools 34.0.0. Contoh build di Windows:
 

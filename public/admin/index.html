@@ -356,6 +356,16 @@
               </div>
               <small style="color:var(--muted);margin-top:8px;display:block">Saat pembayaran, struk langsung masuk antrean cetak. Pilih printer thermal di dialog print.</small>
             </div>
+            <div class="field full" id="btPrinterBox">
+              <span>Printer Bluetooth (khusus APK Android)</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <select class="select" id="printerMac" style="flex:1;min-width:200px"><option value="">Pilih printer yang sudah dipasangkan</option></select>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnCariPrinter">Cari Printer</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnTestBluetooth">Test Print BT</button>
+              </div>
+              <input class="input" id="printerMacManual" placeholder="Atau masukkan MAC, mis. 00:11:22:33:44:55" style="margin-top:8px">
+              <small style="color:var(--muted);margin-top:8px;display:block" id="btPrinterHint">Pasangkan printer di Setelan Bluetooth HP dulu. PIN RPP02N biasanya 0000.</small>
+            </div>
             <label class="field"><span>Lebar Kertas</span><select class="select" id="printerLebar"><option value="58">58 mm</option><option value="80">80 mm</option></select></label>
             <label class="field"><span>Logo Header</span><input class="input" id="printerLogo" placeholder="/assets/logo-icon.png"></label>
             <label class="field full"><span>Teks Header</span><input class="input" id="printerHeader" placeholder="SUNDAY BREAKFAST — Mataram, NTB"></label>
