@@ -117,7 +117,31 @@ function bukaView(nama) {
   $$('.sb-nav button').forEach(b => b.classList.toggle('aktif', b.dataset.view === nama));
   $$('.view').forEach(v => v.classList.toggle('aktif', v.id === 'view-' + nama));
   $('#pageTitle').textContent = JUDUL[nama] || nama;
+  if (document.body.classList.contains('drawer-buka')) tutupDrawer();
 }
+
+/* ---------- DRAWER SIDEBAR (mobile) ---------- */
+const drawerToggle = $('#drawerToggle');
+const drawerClose = $('#drawerClose');
+const drawerOverlay = $('#drawerOverlay');
+const sidebarEl = $('#sidebar');
+function bukaDrawer() {
+  document.body.classList.add('drawer-buka');
+  drawerToggle.setAttribute('aria-expanded', 'true');
+  const pertama = sidebarEl?.querySelector('.sb-nav button');
+  if (pertama) pertama.focus();
+}
+function tutupDrawer() {
+  document.body.classList.remove('drawer-buka');
+  drawerToggle.setAttribute('aria-expanded', 'false');
+  drawerToggle.focus();
+}
+if (drawerToggle) drawerToggle.onclick = bukaDrawer;
+if (drawerClose) drawerClose.onclick = tutupDrawer;
+if (drawerOverlay) drawerOverlay.onclick = tutupDrawer;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('drawer-buka')) tutupDrawer();
+});
 
 function renderAll() {
   renderDashboard(); renderMenu(); renderKasir(); renderHpp();

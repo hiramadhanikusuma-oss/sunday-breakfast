@@ -31,10 +31,11 @@
 
 <!-- ===== APP ===== -->
 <div id="appView">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Menu admin">
     <div class="sb-brand">
       <img src="/assets/logo-icon.png" alt="Sunday">
       <div><b>SUNDAY</b><small>Admin Panel</small></div>
+      <button class="drawer-close" id="drawerClose" aria-label="Tutup menu">✕</button>
     </div>
     <nav class="sb-nav">
       <button data-view="kasir" class="aktif">▣ <span>Kasir</span></button>
@@ -50,10 +51,14 @@
     </nav>
     <div class="sb-foot">Sunday Breakfast © 2026<br>Mataram, NTB</div>
   </aside>
+  <div class="drawer-overlay" id="drawerOverlay" aria-hidden="true"></div>
 
   <div class="main">
     <header class="topbar">
-      <h2 id="pageTitle">Kasir</h2>
+      <div class="topbar-title">
+        <button class="drawer-toggle" id="drawerToggle" aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">☰</span></button>
+        <h2 id="pageTitle">Kasir</h2>
+      </div>
       <div class="topbar-actions">
         <a class="btn btn-ghost btn-sm" href="/" target="_blank">Lihat Website ↗</a>
         <button class="btn btn-ghost btn-sm" id="btnLogout">Keluar</button>
