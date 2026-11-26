@@ -111,6 +111,14 @@
               <div><span>Total</span><b id="cartTotal">Rp 0</b></div>
             </div>
             <label class="field"><span>Uang Bayar</span><input class="input" id="bayarInput" type="number" min="0" placeholder="0"></label>
+            <div class="uang-cepat" id="uangCepat" aria-label="Nominal bayar cepat">
+              <button type="button" data-nominal="pas">Pas</button>
+              <button type="button" data-nominal="10000">10rb</button>
+              <button type="button" data-nominal="20000">20rb</button>
+              <button type="button" data-nominal="50000">50rb</button>
+              <button type="button" data-nominal="100000">100rb</button>
+              <button type="button" data-nominal="0">Hapus</button>
+            </div>
             <label class="field"><span>Metode Pembayaran</span><select class="select" id="metodeBayar"><option>Cash</option><option>QRIS</option></select></label>
             <div class="kembalian">Kembalian: <b id="kembalian">Rp 0</b></div>
             <button class="btn btn-accent btn-block" id="btnBayar">Bayar &amp; Cetak Struk</button>

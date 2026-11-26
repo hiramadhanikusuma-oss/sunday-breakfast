@@ -521,8 +521,19 @@ function hitungKembalian() {
   const total = cart.reduce((a,c) => a + c.harga*c.qty, 0);
   const bayar = Number($('#bayarInput').value) || 0;
   $('#kembalian').textContent = rp(Math.max(0, bayar - total));
+  $$('#uangCepat button').forEach(b => {
+    const n = b.dataset.nominal;
+    const nilai = n === 'pas' ? total : Number(n);
+    b.classList.toggle('aktif', n !== '0' && bayar === nilai && (n !== 'pas' || total > 0));
+  });
 }
 $('#bayarInput').addEventListener('input', hitungKembalian);
+$$('#uangCepat button').forEach(b => b.onclick = () => {
+  const n = b.dataset.nominal;
+  const total = cart.reduce((a,c) => a + c.harga*c.qty, 0);
+  $('#bayarInput').value = n === 'pas' ? total : (n === '0' ? '' : Number(n));
+  hitungKembalian();
+});
 $('#kasirCari').addEventListener('input', renderKasir);
 $('#kasirKat').addEventListener('change', renderKasir);
 $('#cartClear').onclick = () => { cart = []; $('#bayarInput').value=''; renderCart(); };

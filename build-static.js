@@ -5,7 +5,7 @@ const path = require('path');
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const DIST = path.join(ROOT, 'dist');
-const PUBLIC_API = 'https://script.google.com/macros/s/AKfycby7MMX5LkJxaf8GpUAvfRi5LQwCUIovJNkAvvemM-73WKr8NyKUQS-z6-peXcv4JInD/exec?r=%2Fapi%2Fpublic';
+const PUBLIC_API = 'https://script.google.com/macros/s/AKfycbwgA3mwjI6evxE_DY1edcebRQRykr-aCDoJpbN2pElIm95PH5YVeU4fb_w4C0c0DDU8/exec?r=%2Fapi%2Fpublic';
 
 fs.mkdirSync(DIST, { recursive: true });
 if (fs.existsSync(DIST)) {

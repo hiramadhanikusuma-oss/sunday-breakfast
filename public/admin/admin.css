@@ -228,6 +228,15 @@ body.drawer-buka { overflow: hidden; }
 .cart-total { background: var(--paper); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
 .cart-total > div { display: flex; justify-content: space-between; padding: 4px 0; font-size: .78rem; }
 .cart-total .profit b { color: #2E8B23; }
+.uang-cepat { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 14px; }
+.uang-cepat button {
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft);
+  border-radius: 999px; padding: 7px 11px; font-size: .7rem; font-weight: 800;
+  transition: transform .18s, background .2s, border-color .2s, color .2s;
+}
+.uang-cepat button:hover { transform: translateY(-1px); border-color: var(--accent-dark); color: var(--ink); }
+.uang-cepat button:active { transform: translateY(0); }
+.uang-cepat button.aktif { background: var(--accent); border-color: var(--accent-dark); color: var(--ink); }
 .kembalian { text-align: right; font-size: .8rem; margin: 10px 0; }
 .kembalian b { font-size: 1rem; }
 
@@ -326,5 +335,6 @@ body.drawer-buka { overflow: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar, .drawer-overlay, .nav-indicator,
-  .sb-nav button, .sb-nav button i, .sb-nav button span { transition: none; }
+  .sb-nav button, .sb-nav button i, .sb-nav button span,
+  .uang-cepat button { transition: none; }
 }
