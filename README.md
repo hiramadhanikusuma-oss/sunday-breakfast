@@ -40,7 +40,7 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbwkjr5W3iJ61Am_FV0vuAfECrdQCKuaP2HZtWeJz-WCMEfTkgHw5ToWT5RbHkgQu-0/exec
+https://script.google.com/macros/s/AKfycby7MMX5LkJxaf8GpUAvfRi5LQwCUIovJNkAvvemM-73WKr8NyKUQS-z6-peXcv4JInD/exec
 ```
 
 - Login dengan PIN `sunday123` (bisa diganti di Pengaturan).

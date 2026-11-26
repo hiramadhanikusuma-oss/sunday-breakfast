@@ -111,14 +111,27 @@ async function masuk() {
 const JUDUL = { dashboard:'Dashboard', kasir:'Kasir', menu:'Menu', hpp:'HPP',
   simulasi:'Simulasi Laba', laporan:'Laporan', receipt:'Receipt',
   toko:'Toko & Branding', upload:'Aset Foto', pengaturan:'Pengaturan' };
+const navEl = $('#sbNav');
+const navIndicator = $('#navIndicator');
+function posisiIndikator() {
+  if (!navEl || !navIndicator) return;
+  const aktif = navEl.querySelector('button.aktif');
+  if (!aktif) { navIndicator.style.opacity = '0'; return; }
+  navIndicator.style.transform = 'translateY(' + (aktif.offsetTop + 5) + 'px)';
+  navIndicator.style.height = Math.max(aktif.offsetHeight - 10, 16) + 'px';
+  navIndicator.style.opacity = '1';
+}
 $$('.sb-nav button').forEach(b => b.onclick = () => bukaView(b.dataset.view));
 $$('[data-goto]').forEach(b => b.onclick = () => bukaView(b.dataset.goto));
 function bukaView(nama) {
   $$('.sb-nav button').forEach(b => b.classList.toggle('aktif', b.dataset.view === nama));
   $$('.view').forEach(v => v.classList.toggle('aktif', v.id === 'view-' + nama));
   $('#pageTitle').textContent = JUDUL[nama] || nama;
+  posisiIndikator();
   if (document.body.classList.contains('drawer-buka')) tutupDrawer();
 }
+window.addEventListener('resize', posisiIndikator);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(posisiIndikator);
 
 /* ---------- DRAWER SIDEBAR (mobile) ---------- */
 const drawerToggle = $('#drawerToggle');
@@ -130,6 +143,7 @@ function bukaDrawer() {
   drawerToggle.setAttribute('aria-expanded', 'true');
   const pertama = sidebarEl?.querySelector('.sb-nav button');
   if (pertama) pertama.focus();
+  posisiIndikator();
 }
 function tutupDrawer() {
   document.body.classList.remove('drawer-buka');
