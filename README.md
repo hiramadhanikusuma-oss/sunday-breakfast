@@ -10,7 +10,7 @@ npm start
 
 - Website pelanggan: http://localhost:3000
 - Admin: http://localhost:3000/admin
-- PIN admin default: `sunday123`
+- PIN admin default: `800008`
 - Tema brand biru/kuning dipakai sebagai tampilan utama. Tambahkan `?brand=0` untuk melihat tema lama.
 
 ## Build website pelanggan (statis)
@@ -40,11 +40,11 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbw6YFaziMGu7VNMuUwqivlkBur_BT8xgyxSM-MEUQ42BubDSnaxavCYRikM9Js1F9_1/exec
+https://script.google.com/macros/s/AKfycbwNi-CrS5TnuUlqyVyBIKF2pf0uhEMe81OvAa6KrvxClA-P5NSaha-zylHvyBM4hRe1/exec
 ```
 
-- Login dengan PIN `sunday123` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi huruf seperti `sunday123` bisa diketik di HP.
-- PIN yang aktif terlihat di Spreadsheet → sheet `db` → baris `settings` / `pin_admin` (nilainya `sunday123`). Login tetap memakai hash PIN; website pelanggan tidak menerima data PIN.
+- Login dengan PIN `800008` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi PIN apa pun bisa diketik di HP.
+- PIN yang aktif terlihat di Spreadsheet → sheet `db` → baris `settings` / `pin_admin` (nilainya `800008`). Login tetap memakai hash PIN; website pelanggan tidak menerima data PIN.
 - Data tersimpan di Spreadsheet "Sunday Breakfast — Database" di akun Google `hi.ramadhanikusuma@gmail.com`. ID spreadsheet disimpan di Script Properties `sunday_sheet_id`.
 - Laporan CSV bisa diekspor dan/atau disimpan otomatis ke Google Drive folder "Sunday Breakfast — Laporan".
 

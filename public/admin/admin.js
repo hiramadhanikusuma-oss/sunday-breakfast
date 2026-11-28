@@ -401,7 +401,7 @@ $('#btnCopy').onclick = async () => {
 /* ---------- PIN ---------- */
 function renderPin() {
   const el = $('#pinTersimpan');
-  if (el) el.value = (DB.settings && DB.settings.pin_admin) || 'sunday123';
+  if (el) el.value = (DB.settings && DB.settings.pin_admin) || '800008';
 }
 $('#simpanPin').onclick = async () => {
   const p = $('#pinBaru').value.trim();

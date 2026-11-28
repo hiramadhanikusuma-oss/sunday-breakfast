@@ -116,8 +116,8 @@ function seed() {
       ],
       fixed_costs: [],
       pin_salt: salt,
-      pin_hash: hashPin('sunday123', salt),
-      pin_admin: 'sunday123'
+      pin_hash: hashPin('800008', salt),
+      pin_admin: '800008'
     },
     bahan: [],
     menu: [

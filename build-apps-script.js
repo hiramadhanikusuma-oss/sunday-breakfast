@@ -197,7 +197,7 @@ function sheetDB_() {
     var baris = [['collection', 'id', 'json']];
     baris.push(['meta', 'counter_nota', String(seed.counter_nota || 0)]);
     baris.push(['settings', 'all', JSON.stringify(seed.settings || {})]);
-    baris.push(['settings', 'pin_admin', String(seed.settings && seed.settings.pin_admin || 'sunday123')]);
+    baris.push(['settings', 'pin_admin', String(seed.settings && seed.settings.pin_admin || '800008')]);
     (seed.bahan || []).forEach(function (x, i) { baris.push(['bahan', x.id || ('bahan_' + i), JSON.stringify(x)]); });
     (seed.menu || []).forEach(function (x, i) { baris.push(['menu', x.id || ('menu_' + i), JSON.stringify(x)]); });
     (seed.transaksi || []).forEach(function (x, i) { baris.push(['transaksi', x.id || ('trx_' + i), JSON.stringify(x)]); });
@@ -229,7 +229,7 @@ function bacaDB_() {
   }
   /* Sheet lama belum punya baris pin_admin: tambahkan sekali saat dibaca. */
   if (!out.settings.pin_admin) {
-    out.settings.pin_admin = 'sunday123';
+    out.settings.pin_admin = '800008';
     try {
       var propPin = PropertiesService.getScriptProperties();
       if (!propPin.getProperty('pin_admin_tersimpan')) {
@@ -244,7 +244,7 @@ function tulisDB_(d) {
   var baris = [['collection', 'id', 'json']];
   baris.push(['meta', 'counter_nota', String(d.counter_nota || 0)]);
   baris.push(['settings', 'all', JSON.stringify(d.settings || {})]);
-  baris.push(['settings', 'pin_admin', String(d.settings && d.settings.pin_admin || 'sunday123')]);
+  baris.push(['settings', 'pin_admin', String(d.settings && d.settings.pin_admin || '800008')]);
   (d.bahan || []).forEach(function (x, i) { baris.push(['bahan', x.id || ('bahan_' + i), JSON.stringify(x)]); });
   (d.menu || []).forEach(function (x, i) { baris.push(['menu', x.id || ('menu_' + i), JSON.stringify(x)]); });
   (d.transaksi || []).forEach(function (x, i) { baris.push(['transaksi', x.id || ('trx_' + i), JSON.stringify(x)]); });
