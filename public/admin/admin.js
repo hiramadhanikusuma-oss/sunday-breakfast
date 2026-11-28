@@ -871,19 +871,14 @@ function renderReceipt() {
       '<td><span class="chip '+(x.refunded?'habis':'aktif')+'">'+(x.refunded?'Refund':'Lancar')+'</span></td>' +
       '<td><div class="row-actions">' +
       '<button class="btn btn-ghost btn-sm" data-lihat="'+esc(x.id)+'">Lihat</button>' +
-      '<button class="btn btn-ghost btn-sm" data-cetak="'+esc(x.id)+'">Cetak</button>' +
-      '<button class="btn btn-accent btn-sm" data-cetak-bt="'+esc(x.id)+'">BT</button>' +
+      '<button class="btn btn-accent btn-sm" data-cetak-bt="'+esc(x.id)+'">🖨 Cetak</button>' +
       (x.refunded ? '' : '<button class="btn btn-ghost btn-sm" data-refund="'+esc(x.id)+'">Refund</button>') +
       '<button class="btn btn-danger btn-sm" data-hapus="'+esc(x.id)+'">Hapus</button></div></td></tr>';
   }).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada transaksi</td></tr>';
   $$('[data-lihat]').forEach(b => b.onclick = () => lihatStruk(b.dataset.lihat));
-  $$('[data-cetak]').forEach(b => b.onclick = () => {
-    const trx = semua.find(x => x.id === b.dataset.cetak);
-    if (trx) cetakStruk(trx, false);
-  });
   $$('[data-cetak-bt]').forEach(b => b.onclick = () => {
     const trx = semua.find(x => x.id === b.dataset.cetakBt);
-    if (trx) cetakBluetooth(trx);
+    if (trx) cetakDariTombol(b, trx);
   });
   $$('[data-refund]').forEach(b => b.onclick = () => prosesRefund(b.dataset.refund));
   $$('[data-hapus]').forEach(b => b.onclick = () => prosesHapusReceipt(b.dataset.hapus));
@@ -906,11 +901,18 @@ async function prosesHapusReceipt(id) {
     ? 'Hapus struk '+trx.no_nota+' dari daftar?'
     : 'Hapus struk '+trx.no_nota+'? Stok akan dikembalikan.';
   if (!confirm(pesan)) return;
+  const no = trx.no_nota;
+  /* Hilangkan dari tampilan langsung, jangan tunggu jaringan. */
+  DB.transaksi = (DB.transaksi || []).filter(x => x.id !== id);
+  renderReceipt();
+  toast('✓ '+no+' dihapus');
   try {
     await post('/api/admin/transaksi/hapus', { id });
-    DB = await api('/api/admin/data');
-    renderAll(); toast('✓ '+trx.no_nota+' dihapus');
-  } catch (e) { toast(e.message); }
+    api('/api/admin/data').then(d => { DB = d; renderAll(); }).catch(() => {});
+  } catch (e) {
+    toast('Gagal hapus: ' + e.message);
+    api('/api/admin/data').then(d => { DB = d; renderAll(); }).catch(() => {});
+  }
 }
 function lihatStruk(id) {
   const trx = (DB.transaksi||[]).find(x => x.id === id);
@@ -922,12 +924,10 @@ function lihatStruk(id) {
     (trx.refund_at ? '<p class="struk-catatan">Direfund: '+new Date(trx.refund_at).toLocaleString('id-ID')+
       (trx.refund_alasan ? ' — '+esc(trx.refund_alasan) : '')+'</p>' : '') +
     '<div class="modal-foot"><button class="btn btn-ghost" id="strukTutup">Tutup</button>' +
-    '<button class="btn btn-ghost" id="strukCetakDialog">Cetak Dialog</button>' +
-    '<button class="btn btn-dark" id="strukCetak">🖨 Cetak Bluetooth</button></div></div>';
+    '<button class="btn btn-accent" id="strukCetak">🖨 Cetak Bluetooth</button></div></div>';
   document.body.appendChild(bg);
   $('#strukTutup').onclick = () => bg.remove();
-  $('#strukCetakDialog').onclick = () => cetakStruk(trx, false);
-  $('#strukCetak').onclick = () => cetakBluetooth(trx);
+  $('#strukCetak').onclick = () => cetakDariTombol($('#strukCetak'), trx);
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
 }
 $('#refreshReceipt').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('History dimuat ulang'); };
@@ -1378,6 +1378,20 @@ async function cetakBluetooth(trx) {
     toast(e.message || String(e));
   }
 }
+/* Satu tombol cetak: langsung kasih tanda "Mencetak…" supaya tidak terasa diam. */
+async function cetakDariTombol(btn, trx) {
+  if (btn && btn.dataset.sibuk === '1') return;
+  const teksAsli = btn ? btn.textContent : '';
+  if (btn) { btn.dataset.sibuk = '1'; btn.disabled = true; btn.textContent = 'Mencetak…'; }
+  toast('Mengirim struk ke printer…');
+  try {
+    await cetakBluetooth(trx);
+  } catch (e) {
+    toast(e.message || String(e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = teksAsli; delete btn.dataset.sibuk; }
+  }
+}
 let daftarPrinterBT = [];
 function macTersimpan() { return ((DB.settings.printer || {}).mac || '').trim(); }
 function isiSelectPrinter(daftar) {
@@ -1448,7 +1462,10 @@ function muatGambarStruk(src) {
   });
 }
 
+const _cacheRasterLogo = new Map();
 async function logoRasterEscPos(src, lebarKertas) {
+  const kunci = (src || '') + '|' + lebarKertas;
+  if (_cacheRasterLogo.has(kunci)) return _cacheRasterLogo.get(kunci);
   const img = await muatGambarStruk(src);
   if (!img) return new Uint8Array(0);
   const maxDot = lebarKertas === 80 ? 576 : lebarKertas === 48 ? 256 : 384;
@@ -1477,6 +1494,7 @@ async function logoRasterEscPos(src, lebarKertas) {
   out.set(header, 0);
   out.set(raster, header.length);
   out.set([0x1B, 0x61, 0x00], header.length + raster.length); // left align after logo
+  _cacheRasterLogo.set(kunci, out);
   return out;
 }
 
