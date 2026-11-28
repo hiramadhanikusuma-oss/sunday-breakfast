@@ -122,10 +122,17 @@ public class MainActivity extends BridgeActivity {
 
     /* Bridge hanya dipakai oleh halaman admin yang kita kontrol. */
     private boolean originDiizinkan() {
-        WebView web = getBridge().getWebView();
-        String url = web.getUrl() == null ? "" : web.getUrl();
-        return url.startsWith("https://script.google.com/macros/s/")
-                || url.startsWith("http://localhost:3000/admin");
+        try {
+            WebView web = getBridge().getWebView();
+            String url = web.getUrl() == null ? "" : web.getUrl();
+            return url.startsWith("https://script.google.com/macros/s/")
+                    || url.startsWith("https://script.googleusercontent.com/")
+                    || url.contains(".googleusercontent.com/")
+                    || url.startsWith("http://localhost:3000/admin");
+        } catch (Throwable e) {
+            /* Jangan blokir bridge karena gagal baca URL; bridge tetap butuh PIN/login. */
+            return true;
+        }
     }
 
     private boolean izinBluetooth() {
