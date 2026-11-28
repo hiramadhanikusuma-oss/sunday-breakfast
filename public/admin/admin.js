@@ -1407,10 +1407,18 @@ function cariPrinterBT(onUpdate) {
     const bridge = btBridge();
     if (!bridge) return reject(new Error('Cari printer hanya tersedia di APK Sunday Admin'));
     const cb = 'sundayBtScan' + Math.random().toString(36).slice(2);
-    const to = setTimeout(() => { bersihkan(); reject(new Error('Pencarian printer timeout')); }, 28000);
+    let terakhir = { ok: true, pesan: 'Mencari printer...', perangkat: [], selesai: false };
+    const to = setTimeout(() => {
+      bersihkan();
+      // Jangan gagal total: kembalikan hasil terakhir (mis. perangkat terpasang).
+      terakhir.selesai = true;
+      terakhir.pesan = terakhir.pesan || 'Pencarian selesai (timeout)';
+      resolve(terakhir);
+    }, 15000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
     window[cb] = res => {
       const data = res || {};
+      terakhir = data;
       if (typeof onUpdate === 'function') onUpdate(data);
       if (data.selesai) { bersihkan(); resolve(data); }
     };
@@ -1475,10 +1483,13 @@ function mulaiCariPrinter(autoHubungkan) {
     }
   }).then(async r => {
     const d = r.perangkat || [];
-    if (!r.ok) { setBtStatus(r.pesan || 'Gagal mencari printer', true); return; }
+    if (!r.ok) {
+      setBtStatus((r.pesan || 'Gagal mencari printer') + ' Coba Izinkan BT, atau isi MAC manual lalu tekan “Hubungkan / Pasang manual”.', true);
+      return;
+    }
     isiSelectPrinter(daftarPrinterBT.concat(d));
     if (!d.length) {
-      setBtStatus('Tidak ada perangkat. Nyalakan printer RPP02N lalu cari lagi.', true);
+      setBtStatus('Tidak ada perangkat terdeteksi. Jika printer sudah dipasangkan di Setelan HP, isi MAC di kolom manual lalu tekan “Hubungkan / Pasang manual”. ' + (r.pesan || ''), true);
       return;
     }
     $('#btPrinterHint').textContent = d.length + ' perangkat ditemukan. Tekan “Hubungkan” pada printer yang benar.';
