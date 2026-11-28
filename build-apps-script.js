@@ -90,10 +90,14 @@ function prosesPost_(b, p) {
   var token = b.token || p.token || '';
   if (r === '/api/admin/session') return { auth: cekToken_(token) };
   if (r === '/api/admin/login') return login_(b.pin);
+  if (r === '/api/order') return terimaPesanan_(b);
   if (r === 'drive') return simpanDrive_(b);
   if (!cekToken_(token)) return { error: 'Belum login' };
   if (r === '/api/admin/logout') return { ok: true };
   if (r === '/api/admin/data') return bacaDB_();
+  if (r === '/api/admin/pesanan') return { pesanan: bacaDB_().pesanan || [] };
+  if (r === '/api/admin/pesanan/status') return statusPesanan_(b);
+  if (r === '/api/admin/pesanan/hapus') return hapusPesanan_(b);
   if (r === '/api/admin/save') return simpan_(b);
   if (r === '/api/admin/upload') return unggah_(b);
   if (r === '/api/admin/transaksi') return transaksi_(b);
@@ -196,6 +200,7 @@ function sheetDB_() {
     var seed = JSON.parse(SEED_JSON);
     var baris = [['collection', 'id', 'json']];
     baris.push(['meta', 'counter_nota', String(seed.counter_nota || 0)]);
+    baris.push(['meta', 'counter_pesanan', String(seed.counter_pesanan || 0)]);
     baris.push(['settings', 'all', JSON.stringify(seed.settings || {})]);
     baris.push(['settings', 'pin_admin', String(seed.settings && seed.settings.pin_admin || '800008')]);
     (seed.bahan || []).forEach(function (x, i) { baris.push(['bahan', x.id || ('bahan_' + i), JSON.stringify(x)]); });
@@ -207,12 +212,13 @@ function sheetDB_() {
 }
 function bacaDB_() {
   var values = sheetDB_().getDataRange().getValues();
-  var out = { settings: {}, menu: [], bahan: [], transaksi: [], counter_nota: 0 };
+  var out = { settings: {}, menu: [], bahan: [], transaksi: [], pesanan: [], counter_nota: 0, counter_pesanan: 0 };
   for (var i = 1; i < values.length; i++) {
     var col = values[i][0], id = values[i][1], teks = values[i][2];
     if (!col) continue;
     if (col === 'meta') {
       if (id === 'counter_nota') out.counter_nota = Number(teks) || 0;
+      if (id === 'counter_pesanan') out.counter_pesanan = Number(teks) || 0;
       continue;
     }
     if (col === 'settings' && id === 'pin_admin') {
@@ -225,6 +231,7 @@ function bacaDB_() {
       else if (col === 'bahan') out.bahan.push(v);
       else if (col === 'menu') out.menu.push(v);
       else if (col === 'transaksi') out.transaksi.push(v);
+      else if (col === 'pesanan') out.pesanan.push(v);
     } catch (e) {}
   }
   /* Sheet lama belum punya baris pin_admin: tambahkan sekali saat dibaca. */
@@ -238,20 +245,98 @@ function bacaDB_() {
       }
     } catch (e) {}
   }
+  out.pesanan.sort(function (a, b) { return String(b.waktu || '').localeCompare(String(a.waktu || '')); });
   return out;
 }
 function tulisDB_(d) {
   var baris = [['collection', 'id', 'json']];
   baris.push(['meta', 'counter_nota', String(d.counter_nota || 0)]);
+  baris.push(['meta', 'counter_pesanan', String(d.counter_pesanan || 0)]);
   baris.push(['settings', 'all', JSON.stringify(d.settings || {})]);
   baris.push(['settings', 'pin_admin', String(d.settings && d.settings.pin_admin || '800008')]);
   (d.bahan || []).forEach(function (x, i) { baris.push(['bahan', x.id || ('bahan_' + i), JSON.stringify(x)]); });
   (d.menu || []).forEach(function (x, i) { baris.push(['menu', x.id || ('menu_' + i), JSON.stringify(x)]); });
   (d.transaksi || []).forEach(function (x, i) { baris.push(['transaksi', x.id || ('trx_' + i), JSON.stringify(x)]); });
+  (d.pesanan || []).forEach(function (x, i) { baris.push(['pesanan', x.id || ('ps_' + i), JSON.stringify(x)]); });
   var sh = sheetDB_();
   sh.clearContents();
   sh.getRange(1, 1, baris.length, 3).setValues(baris);
   return true;
+}
+
+/* ---------- PESANAN DARI WEBSITE PELANGGAN ---------- */
+function terimaPesanan_(b) {
+  var items = Array.isArray(b.items) ? b.items : [];
+  if (!items.length) return { error: 'Keranjang kosong' };
+  items = items.slice(0, 60).map(function (it) {
+    return {
+      menu_id: String(it.menu_id || ''),
+      nama: String(it.nama || '').slice(0, 120),
+      qty: Math.max(1, Number(it.qty) || 1),
+      harga: Number(it.harga) || 0,
+      mix: String(it.mix || '').slice(0, 240)
+    };
+  });
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { error: 'Pesanan sedang diproses, coba lagi' }; }
+  try {
+    var d = bacaDB_();
+    d.counter_pesanan = (Number(d.counter_pesanan) || 0) + 1;
+    var pesanan = {
+      id: String(b.id || ('ps_' + Date.now().toString(36) + '_' + Utilities.getUuid().slice(0, 5))).slice(0, 80),
+      no_pesanan: String(b.no_pesanan || ('PS-' + String(d.counter_pesanan).padStart(5, '0'))).slice(0, 40),
+      waktu: new Date().toISOString(),
+      nama: String(b.nama || '').slice(0, 120),
+      hp: String(b.hp || '').slice(0, 40),
+      metode: b.metode === 'kurir' ? 'kurir' : 'ambil',
+      alamat: String(b.alamat || '').slice(0, 500),
+      catatan: String(b.catatan || '').slice(0, 500),
+      items: items,
+      total: Number(b.total) || 0,
+      status: 'baru',
+      sumber: 'website'
+    };
+    if (!Array.isArray(d.pesanan)) d.pesanan = [];
+    d.pesanan.unshift(pesanan);
+    if (d.pesanan.length > 300) d.pesanan = d.pesanan.slice(0, 300);
+    tulisDB_(d);
+    return { ok: true, no_pesanan: pesanan.no_pesanan, id: pesanan.id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function statusPesanan_(b) {
+  var id = String(b.id || '');
+  var status = b.status === 'selesai' ? 'selesai' : 'baru';
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { error: 'Pesanan sedang diproses' }; }
+  try {
+    var d = bacaDB_();
+    var ketemu = false;
+    (d.pesanan || []).forEach(function (p) {
+      if (p.id === id) { p.status = status; ketemu = true; }
+    });
+    if (!ketemu) return { error: 'Pesanan tidak ditemukan' };
+    tulisDB_(d);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function hapusPesanan_(b) {
+  var id = String(b.id || '');
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { error: 'Pesanan sedang diproses' }; }
+  try {
+    var d = bacaDB_();
+    var sebelum = (d.pesanan || []).length;
+    d.pesanan = (d.pesanan || []).filter(function (p) { return p.id !== id; });
+    if (d.pesanan.length === sebelum) return { error: 'Pesanan tidak ditemukan' };
+    tulisDB_(d);
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ---------- API ADMIN ---------- */
@@ -273,7 +358,9 @@ function simpan_(b) {
   if (Array.isArray(b.menu)) d.menu = b.menu;
   if (Array.isArray(b.bahan)) d.bahan = b.bahan;
   if (Array.isArray(b.transaksi)) d.transaksi = b.transaksi;
+  if (Array.isArray(b.pesanan)) d.pesanan = b.pesanan;
   if (typeof b.counter_nota === 'number') d.counter_nota = b.counter_nota;
+  if (typeof b.counter_pesanan === 'number') d.counter_pesanan = b.counter_pesanan;
   tulisDB_(d);
   return { ok: true };
 }

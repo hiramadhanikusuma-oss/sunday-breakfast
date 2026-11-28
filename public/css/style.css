@@ -316,7 +316,8 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
 .ob-wa { background: var(--accent); color: var(--ink); border-radius: 999px; padding: 12px 20px; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .order-panel {
   position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%); z-index: 60;
-  width: 400px; max-width: calc(100vw - 32px); background: var(--white); border-radius: var(--radius);
+  width: 400px; max-width: calc(100vw - 32px); max-height: calc(100vh - 110px); overflow-y: auto;
+  background: var(--white); border-radius: var(--radius);
   box-shadow: var(--shadow-lg); border: 1px solid var(--line); padding: 22px;
 }
 .op-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-head); font-size: 1.1rem; font-weight: 800; margin-bottom: 12px; }
@@ -329,9 +330,13 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
 .op-langkah { display: block; color: var(--muted); font-size: .66rem; margin-bottom: 10px; }
 .op-kirim-pilih { display: flex; gap: 16px; flex-wrap: wrap; }
 .op-kirim-pilih label { font-size: .74rem; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.op-input { width: 100%; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: .76rem; background: var(--white); }
+.op-input { width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: .76rem; background: var(--white); }
+textarea.op-input { resize: vertical; min-height: 62px; }
 .op-input:focus { outline: none; border-color: var(--brand); }
+.op-field { display: block; margin-top: 10px; font-size: .68rem; font-weight: 700; color: var(--muted); }
+.op-field:first-child { margin-top: 12px; }
 #opAlamatWrap small { display: block; color: var(--muted); font-size: .66rem; margin-top: 5px; }
+.ob-wa:disabled { opacity: .65; cursor: wait; }
 .mc-unggulan { position: absolute; left: 10px; bottom: 10px; background: var(--accent); color: var(--ink); font-size: .62rem; font-weight: 800; padding: 5px 9px; border-radius: 999px; letter-spacing: .02em; }
 .map-placeholder { text-decoration: none; cursor: pointer; }
 .map-placeholder p { margin: 8px 0 0; font-weight: 800; font-size: .85rem; }

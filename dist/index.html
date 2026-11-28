@@ -229,11 +229,22 @@
     <b>Pengiriman</b>
     <small class="op-langkah">Pilih dulu pengirimannya, lalu pesan ya 🙂</small>
     <div class="op-kirim-pilih">
-      <label><input type="radio" name="kirim" value="ambil" checked> Ambil di toko</label>
-      <label><input type="radio" name="kirim" value="kurir"> Kirim via kurir</label>
+      <label><input type="radio" name="kirim" value="ambil" checked> Ambil sendiri</label>
+      <label><input type="radio" name="kirim" value="kurir"> Kurir ke rumah</label>
     </div>
+    <label class="op-field">Nama kamu
+      <input class="op-input" id="opNama" placeholder="Nama pemesan" autocomplete="name">
+    </label>
+    <label class="op-field">No. HP / WhatsApp
+      <input class="op-input" id="opHp" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" autocomplete="tel">
+    </label>
     <div id="opAlamatWrap" style="display:none">
-      <input class="op-input" id="opAlamat" placeholder="Alamat tujuan lengkap, patokan, No. HP">
+      <label class="op-field">Alamat tujuan lengkap
+        <textarea class="op-input" id="opAlamat" rows="2" placeholder="Jalan, nomor rumah, patokan, kecamatan"></textarea>
+      </label>
+      <label class="op-field">Catatan untuk kurir (opsional)
+        <input class="op-input" id="opCatatan" placeholder="Mis. titip di depan pintu">
+      </label>
       <small>Ongkir dikonfirmasi lewat WhatsApp ya.</small>
     </div>
   </div>

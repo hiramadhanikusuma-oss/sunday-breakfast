@@ -44,8 +44,9 @@
       <button data-view="menu"><i>▤</i><span>Menu</span></button>
       <button data-view="hpp"><i>◫</i><span>HPP</span></button>
       <button data-view="simulasi"><i>◎</i><span>Simulasi Laba</span></button>
-      <button data-view="laporan"><i>▥</i><span>Laporan</span></button>
-      <button data-view="receipt"><i>▧</i><span>Receipt</span></button>
+      <button data-view="laporan"><i>▥</i><span>Insight</span></button>
+      <button data-view="receipt"><i>▧</i><span>History</span></button>
+      <button data-view="pesanan"><i>✉</i><span>Pesanan Masuk</span><em class="nav-badge" id="navPesananBadge" hidden>0</em></button>
       <button data-view="toko"><i>✦</i><span>Toko &amp; Branding</span></button>
       <button data-view="upload"><i>↑</i><span>Aset Foto</span></button>
       <button data-view="pengaturan"><i>⚙</i><span>Pengaturan</span></button>
@@ -197,7 +198,7 @@
       <!-- LAPORAN -->
       <section class="view" id="view-laporan">
         <div class="panel">
-          <div class="panel-head"><div><h3>Filter Periode</h3><p>Laporan dihitung dari transaksi kasir.</p></div>
+          <div class="panel-head"><div><h3>Filter Periode</h3><p>Insight dihitung dari transaksi kasir.</p></div>
             <button class="btn btn-dark btn-sm" id="refreshLaporan">Muat Ulang</button></div>
           <div class="menu-tools">
             <label class="field" style="margin:0"><span>Dari</span><input class="input" id="lapDari" type="date"></label>
@@ -250,7 +251,7 @@
             <p>URL Apps Script Web App: <input class="input" id="driveUrl" placeholder="https://script.google.com/macros/s/.../exec"></p>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
               <button class="btn btn-dark btn-sm" id="simpanDrive">Simpan Pengaturan Drive</button>
-              <button class="btn btn-accent btn-sm" id="kirimDrive">Kirim Semua Laporan ke Drive</button>
+              <button class="btn btn-accent btn-sm" id="kirimDrive">Kirim Semua Insight ke Drive</button>
               <a class="btn btn-ghost btn-sm" href="/PANDUAN_GDRIVE.txt" target="_blank">Panduan setup ↗</a>
             </div>
             <small id="driveStatus" style="display:block;margin-top:10px;color:var(--muted)">Belum ada pengiriman.</small>
@@ -278,7 +279,7 @@
       <!-- RECEIPT -->
       <section class="view" id="view-receipt">
         <div class="panel">
-          <div class="panel-head"><div><h3>Daftar Receipt</h3><p>Lihat struk yang keluar, cetak ulang, refund, atau hapus.</p></div>
+          <div class="panel-head"><div><h3>History Transaksi</h3><p>Lihat struk yang keluar, cetak ulang, refund, atau hapus.</p></div>
             <button class="btn btn-dark btn-sm" id="refreshReceipt">Muat Ulang</button></div>
           <div class="stat-grid" id="receiptStats"></div>
           <div class="menu-tools">
@@ -291,6 +292,27 @@
             <thead><tr><th>No Nota</th><th>Waktu</th><th>Item</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody id="receiptBody"></tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- PESANAN MASUK -->
+      <section class="view" id="view-pesanan">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Pesanan Masuk</h3><p>Pesanan dari website pelanggan. Centang selesai setelah diproses.</p></div>
+            <button class="btn btn-dark btn-sm" id="refreshPesanan">Muat Ulang</button></div>
+          <div class="stat-grid" id="pesananStats"></div>
+          <div class="menu-tools">
+            <input class="input" id="pesananCari" placeholder="🔍 Cari no pesanan / nama / HP...">
+            <select class="select" id="pesananFilter" style="max-width:180px">
+              <option value="baru">Belum selesai</option><option value="selesai">Selesai</option><option value="">Semua</option>
+            </select>
+          </div>
+          <div class="table-scroll">
+            <table class="menu-table pesanan-table">
+              <thead><tr><th>No Pesanan</th><th>Waktu</th><th>Pelanggan</th><th>Pengiriman</th><th>Item</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody id="pesananBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 

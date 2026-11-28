@@ -260,37 +260,86 @@ function bukaFormPesanan() {
   p.style.display = 'block';
   renderPanel();
   $('#menu').scrollIntoView({ behavior:'smooth', block:'start' });
-  toast('Pilih dulu pengiriman, lalu pesan ya 🙂');
-  setTimeout(() => {
-    const pilih = document.querySelector('input[name=kirim]:checked');
-    const fokus = pilih && pilih.value === 'kurir' ? $('#opAlamat') : pilih;
-    if (fokus) fokus.focus({ preventScroll:true });
-  }, 500);
+  toast('Isi nama & no HP, pilih pengirimannya ya 🙂');
+  setTimeout(() => { const f = $('#opNama'); if (f) f.focus({ preventScroll:true }); }, 450);
 }
-function kirimWA() {
+function dataFormPesanan() {
+  const pilih = document.querySelector('input[name=kirim]:checked');
+  return {
+    metode: pilih && pilih.value === 'kurir' ? 'kurir' : 'ambil',
+    nama: ($('#opNama').value || '').trim(),
+    hp: ($('#opHp').value || '').trim(),
+    alamat: ($('#opAlamat').value || '').trim(),
+    catatan: ($('#opCatatan').value || '').trim()
+  };
+}
+function validasiForm(f) {
+  if (!f.nama) { $('#opNama').focus(); return 'Isi nama kamu dulu ya'; }
+  if (!f.hp) { $('#opHp').focus(); return 'Isi no HP / WhatsApp dulu ya'; }
+  if (f.metode === 'kurir' && !f.alamat) { $('#opAlamat').focus(); return 'Isi alamat tujuan dulu ya'; }
+  return '';
+}
+function infoKirim(f) {
+  if (f.metode !== 'kurir') return '🏍️ Ambil sendiri di toko';
+  return '🚚 Kurir ke rumah\n   📍 Alamat: ' + f.alamat +
+    (f.catatan ? '\n   📝 Catatan: ' + f.catatan : '');
+}
+function urlPesanan() {
+  const c = window.CONFIG || {};
+  if (c.orderUrl) return c.orderUrl;
+  if (c.dataUrl) return String(c.dataUrl).split('?')[0];
+  if (c.apiBase) return String(c.apiBase).replace(/\/$/, '');
+  return '/api/order';
+}
+async function kirimPesananOnline(payload) {
+  try {
+    await fetch(urlPesanan(), {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(Object.assign({ r: '/api/order' }, payload))
+    });
+    return true;
+  } catch (e) { return false; }
+}
+async function kirimWA() {
   const items = lineItems();
   if (!items.length) { bukaFormPesanan(); return toast('Pilih menu dulu ya'); }
-  const pilih = document.querySelector('input[name=kirim]:checked');
-  if (pilih && pilih.value === 'kurir' && !($('#opAlamat').value || '').trim()) {
-    $('#orderPanel').style.display = 'block';
-    renderPanel();
-    $('#opAlamat').focus();
-    return toast('Isi alamat tujuan dulu ya');
-  }
+  const f = dataFormPesanan();
+  const err = validasiForm(f);
+  if (err) { $('#orderPanel').style.display = 'block'; return toast(err); }
+
+  const btn = $('#obWa'), teksAwal = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Mengirim...';
+  const noPesanan = 'PS-' + Date.now().toString(36).toUpperCase();
+  const online = await kirimPesananOnline({
+    id: 'ps_' + Date.now().toString(36),
+    no_pesanan: noPesanan,
+    nama: f.nama, hp: f.hp, metode: f.metode,
+    alamat: f.alamat, catatan: f.catatan,
+    total: totalRp(), items: items.map(c => ({
+      menu_id: c.menu_id, nama: c.nama, harga: c.harga, qty: c.qty, mix: c.mix || ''
+    }))
+  });
+  btn.disabled = false; btn.textContent = teksAwal;
+
   const s = DATA.settings;
   const linesTxt = items.map((c, i) =>
     (i + 1) + '. ' + c.nama + ' ×' + c.qty + ' = ' + rp(c.harga * c.qty) + (c.mix ? '\n   └ 🧊 isi: ' + c.mix : '')
   );
   const text =
     'Halo ' + s.nama_toko + '! 👋🍳\n' +
+    '📦 *Pesanan ' + noPesanan + '*\n' +
+    '👤 Nama: ' + f.nama + '\n' +
+    '📱 No. HP: ' + f.hp + '\n' +
     'Saya mau pesan:\n' + linesTxt.join('\n') + '\n' +
     '💰 *Total: ' + rp(totalRp()) + '*\n' +
-    '🚚 *Pengiriman:* ' + infoKirim() + '\n' +
+    infoKirim(f) + '\n' +
     '\nTerima kasih! 🙏';
   const url = 'https://wa.me/' + s.wa + '?text=' + encodeURIComponent(text);
   const w = window.open(url, '_blank');
   if (!w) window.location.href = url;
-  toast('Pesanan diarahkan ke WhatsApp ✔');
+  toast(online ? 'Pesanan masuk ke WA & aplikasi admin ✔' : 'Pesanan diarahkan ke WhatsApp ✔');
 }
 $('#obWa').onclick = kirimWA;
 $('#btnWaHeader').onclick = bukaFormPesanan;
@@ -304,12 +353,6 @@ $('#opTutup').onclick = () => { $('#orderPanel').style.display = 'none'; };
 Array.from(document.querySelectorAll('input[name=kirim]')).forEach(r => r.onchange = () => {
   $('#opAlamatWrap').style.display = r.checked && r.value === 'kurir' ? 'block' : 'none';
 });
-function infoKirim() {
-  const pilih = document.querySelector('input[name=kirim]:checked');
-  if (!pilih || pilih.value !== 'kurir') return 'Ambil di toko';
-  const alamat = ($('#opAlamat').value || '').trim();
-  return 'Kirim via kurir' + (alamat ? '\n   Alamat: ' + alamat : '\n   Alamat: (akan dikirim setelah ini)');
-}
 window.addEventListener('scroll', () => {
   document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 20);
 });

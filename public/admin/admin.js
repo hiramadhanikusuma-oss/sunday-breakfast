@@ -42,7 +42,7 @@ async function api(url, opts) {
   const r = await fetch(apiUrl(url), opts);
   const d = await r.json().catch(() => ({}));
   if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
-  if (AS_MODE && d.token) localStorage.setItem('sunday_token', d.token);
+  if (AS_MODE && d.token) { localStorage.setItem('sunday_token', d.token); simpanTokenNative(); }
   return normalisasiData(d);
 }
 /* Apps Script Web App selalu meng-redirect POST; kirim lewat POST lalu ambil hasil via GET /api/result */
@@ -59,7 +59,7 @@ async function postRaw(url, data) {
   const res = await fetch(base + '?r=' + encodeURIComponent('/api/result?rid=' + rid));
   const d = await res.json().catch(() => ({}));
   if (!res.ok || d.error) throw new Error(d.error || ('HTTP ' + res.status));
-  if (d.token) localStorage.setItem('sunday_token', d.token);
+  if (d.token) { localStorage.setItem('sunday_token', d.token); simpanTokenNative(); }
   return normalisasiData(d);
 }
 const post = (url, data) => {
@@ -81,7 +81,9 @@ $('#loginForm').onsubmit = async e => {
 async function logout() {
   await post('/api/admin/logout', {});
   if (AS_MODE) localStorage.removeItem('sunday_token');
+  simpanTokenNative();
   DB = null;
+  updatePesananBadge([]);
   $('#appView').style.display = 'none';
   $('#loginView').style.display = 'grid';
   $('#pinInput').value = '';
@@ -91,6 +93,7 @@ $('#btnLogout2').onclick = logout;
 
 async function masuk() {
   try {
+    simpanTokenNative();
     DB = await api('/api/admin/data');
     if (AS_MODE) {
       const absolut = u => (u && String(u).charAt(0) === '/') ? PUBLIC_BASE + String(u) : u;
@@ -103,13 +106,15 @@ async function masuk() {
   } catch (e) { toast('Gagal memuat data: ' + e.message); return; }
   $('#loginView').style.display = 'none';
   $('#appView').style.display = 'block';
+  seedPesananAwal();
   renderAll();
   bukaView('kasir');
+  if (localStorage.getItem('sunday_pesanan_seed')) setTimeout(() => cekPesananBaru(false), 1200);
 }
 
 /* ---------- NAV ---------- */
 const JUDUL = { dashboard:'Dashboard', kasir:'Kasir', menu:'Menu', hpp:'HPP',
-  simulasi:'Simulasi Laba', laporan:'Laporan', receipt:'Receipt',
+  simulasi:'Simulasi Laba', laporan:'Insight', receipt:'History', pesanan:'Pesanan Masuk',
   toko:'Toko & Branding', upload:'Aset Foto', pengaturan:'Pengaturan' };
 const navEl = $('#sbNav');
 const navIndicator = $('#navIndicator');
@@ -160,7 +165,7 @@ document.addEventListener('keydown', e => {
 function renderAll() {
   renderDashboard(); renderMenu(); renderKasir(); renderHpp();
   renderBiaya(); renderKaryawan(); renderTarget();
-  renderLaporan(); renderReceipt(); renderToko(); renderPrinter(); renderDrive(); renderPin();
+  renderLaporan(); renderReceipt(); renderPesanan(); renderToko(); renderPrinter(); renderDrive(); renderPin();
 }
 function hppOf(m) {
   const resep = Array.isArray(m.resep) ? m.resep : [];
@@ -836,7 +841,7 @@ function renderReceipt() {
       '<button class="btn btn-accent btn-sm" data-cetak-bt="'+esc(x.id)+'">BT</button>' +
       (x.refunded ? '' : '<button class="btn btn-ghost btn-sm" data-refund="'+esc(x.id)+'">Refund</button>') +
       '<button class="btn btn-danger btn-sm" data-hapus="'+esc(x.id)+'">Hapus</button></div></td></tr>';
-  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada receipt</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Belum ada transaksi</td></tr>';
   $$('[data-lihat]').forEach(b => b.onclick = () => lihatStruk(b.dataset.lihat));
   $$('[data-cetak]').forEach(b => b.onclick = () => {
     const trx = semua.find(x => x.id === b.dataset.cetak);
@@ -891,9 +896,142 @@ function lihatStruk(id) {
   $('#strukCetak').onclick = () => cetakBluetooth(trx);
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
 }
-$('#refreshReceipt').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('Receipt dimuat ulang'); };
+$('#refreshReceipt').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('History dimuat ulang'); };
 $('#receiptCari').oninput = renderReceipt;
 $('#receiptFilter').onchange = renderReceipt;
+
+/* =========================================================
+   PESANAN DARI WEBSITE PELANGGAN
+   ========================================================= */
+const KNOWN_KEY = 'sunday_pesanan_dikenal';
+function seedPesananAwal() {
+  if (localStorage.getItem('sunday_pesanan_seed')) return;
+  const dikenal = knownPesanan();
+  ((DB && DB.pesanan) || []).forEach(p => dikenal.add(p.id));
+  simpanKnownPesanan(dikenal);
+  localStorage.setItem('sunday_pesanan_seed', '1');
+}
+function knownPesanan() {
+  try { return new Set(JSON.parse(localStorage.getItem(KNOWN_KEY) || '[]')); }
+  catch (e) { return new Set(); }
+}
+function simpanKnownPesanan(set) {
+  try { localStorage.setItem(KNOWN_KEY, JSON.stringify(Array.from(set).slice(-300))); } catch (e) {}
+}
+function simpanTokenNative() {
+  const token = localStorage.getItem('sunday_token') || '';
+  if (window.SundayNotify && window.SundayNotify.simpanToken) {
+    try { window.SundayNotify.simpanToken(token); } catch (e) {}
+  }
+}
+function notifikasiPesanan(p) {
+  const judul = 'Pesanan baru ' + (p.no_pesanan || '');
+  const isi = (p.nama || 'Pelanggan') + ' — ' + rp(p.total || 0) + ' — ' +
+    (p.metode === 'kurir' ? 'Kurir ke rumah' : 'Ambil sendiri');
+  if (window.SundayNotify && window.SundayNotify.notifikasi) {
+    try { window.SundayNotify.notifikasi(judul, isi); } catch (e) {}
+  }
+  if (navigator.vibrate) { try { navigator.vibrate([180, 90, 180]); } catch (e) {} }
+  toast('🔔 ' + judul);
+}
+function updatePesananBadge(items) {
+  const badge = $('#navPesananBadge');
+  if (!badge) return;
+  const n = (items || []).filter(p => p.status !== 'selesai').length;
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.hidden = n === 0;
+  document.title = n ? '(' + n + ') Sunday Admin' : 'Sunday Breakfast — Admin';
+}
+function renderPesanan() {
+  const semua = Array.isArray(DB && DB.pesanan) ? DB.pesanan : [];
+  updatePesananBadge(semua);
+  const cari = ($('#pesananCari').value || '').trim().toLowerCase();
+  const filter = $('#pesananFilter').value;
+  const items = semua.filter(p => {
+    if (filter && (p.status || 'baru') !== filter) return false;
+    if (!cari) return true;
+    return [p.no_pesanan, p.nama, p.hp, p.alamat].join(' ').toLowerCase().includes(cari);
+  });
+  const baru = semua.filter(p => p.status !== 'selesai').length;
+  $('#pesananStats').innerHTML =
+    '<div class="stat-box"><b>' + baru + '</b><span>Belum selesai</span></div>' +
+    '<div class="stat-box"><b>' + semua.length + '</b><span>Total pesanan</span></div>' +
+    '<div class="stat-box"><b>' + rp(semua.reduce((a,p)=>a+Number(p.total||0),0)) + '</b><span>Nilai pesanan</span></div>' +
+    '<div class="stat-box"><b>' + semua.filter(p=>p.metode==='kurir').length + '</b><span>Dikirim</span></div>';
+  $('#pesananBody').innerHTML = items.length ? items.map(p => {
+    const selesai = p.status === 'selesai';
+    const itemHtml = (p.items || []).map(it =>
+      esc(it.nama) + ' ×' + Number(it.qty||1) + (it.mix ? '<small>🧊 ' + esc(it.mix) + '</small>' : '')
+    ).join('<br>');
+    const hp = String(p.hp || '').replace(/[^0-9]/g, '');
+    const wa = hp ? 'https://wa.me/' + (hp.startsWith('0') ? '62' + hp.slice(1) : hp) : '';
+    return '<tr><td><b>' + esc(p.no_pesanan) + '</b></td>' +
+      '<td>' + new Date(p.waktu).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'}) + '</td>' +
+      '<td><b>' + esc(p.nama || '-') + '</b><br><small>' + esc(p.hp || '-') + '</small></td>' +
+      '<td>' + (p.metode === 'kurir' ? '🚚 Kurir<br><small>' + esc(p.alamat || '-') + (p.catatan ? '<br>' + esc(p.catatan) : '') + '</small>' : '🏍️ Ambil sendiri') + '</td>' +
+      '<td class="pesanan-item">' + itemHtml + '</td>' +
+      '<td><b>' + rp(p.total) + '</b></td>' +
+      '<td><span class="' + (selesai ? 'pesanan-selesai' : 'pesanan-baru') + '">' + (selesai ? 'Selesai' : 'Baru') + '</span></td>' +
+      '<td><button class="btn btn-ghost btn-sm" data-lihat-ps="' + esc(p.id) + '">Lihat</button> ' +
+      (wa ? '<a class="btn btn-ghost btn-sm" href="' + wa + '" target="_blank" rel="noopener">WA</a> ' : '') +
+      '<button class="btn btn-sm" data-status-ps="' + esc(p.id) + '" data-status="' + (selesai ? 'baru' : 'selesai') + '">' + (selesai ? 'Buka lagi' : '✓ Selesai') + '</button> ' +
+      '<button class="btn btn-danger btn-sm" data-hapus-ps="' + esc(p.id) + '">Hapus</button></td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Belum ada pesanan masuk.</td></tr>';
+  $$('[data-status-ps]').forEach(b => b.onclick = () => ubahStatusPesanan(b.dataset.statusPs, b.dataset.status));
+  $$('[data-lihat-ps]').forEach(b => b.onclick = () => lihatPesanan(b.dataset.lihatPs));
+  $$('[data-hapus-ps]').forEach(b => b.onclick = () => hapusPesananAdmin(b.dataset.hapusPs));
+}
+async function cekPesananBaru(awal) {
+  if (!DB || !$('#appView') || $('#appView').style.display === 'none') return;
+  try {
+    const r = await post('/api/admin/pesanan', {});
+    const items = Array.isArray(r.pesanan) ? r.pesanan : [];
+    DB.pesanan = items;
+    renderPesanan();
+    const dikenal = knownPesanan();
+    const baru = items.filter(p => !dikenal.has(p.id));
+    items.forEach(p => dikenal.add(p.id));
+    simpanKnownPesanan(dikenal);
+    if (!awal && baru.length) {
+      baru.slice(0, 3).forEach(notifikasiPesanan);
+      if (baru.length > 3) notifikasiPesanan({ no_pesanan: '+' + (baru.length - 3) + ' pesanan', nama: 'Pesanan lainnya', total: 0 });
+    }
+  } catch (e) { /* polling diam-diam, tidak mengganggu kasir */ }
+}
+async function ubahStatusPesanan(id, status) {
+  try {
+    await post('/api/admin/pesanan/status', { id, status });
+    await cekPesananBaru(true);
+    toast(status === 'selesai' ? '✓ Pesanan selesai' : 'Pesanan dibuka lagi');
+  } catch (e) { toast(e.message); }
+}
+async function hapusPesananAdmin(id) {
+  if (!confirm('Hapus pesanan ini dari daftar?')) return;
+  try {
+    await post('/api/admin/pesanan/hapus', { id });
+    await cekPesananBaru(true);
+    toast('Pesanan dihapus');
+  } catch (e) { toast(e.message); }
+}
+function lihatPesanan(id) {
+  const p = (DB.pesanan || []).find(x => x.id === id);
+  if (!p) return;
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = '<div class="modal-box resep-modal"><h3>' + esc(p.no_pesanan) + '</h3>' +
+    '<p class="struk-catatan">' + new Date(p.waktu).toLocaleString('id-ID') + ' · ' + esc(p.nama || '-') + ' · ' + esc(p.hp || '-') + '</p>' +
+    '<div class="table-scroll"><table class="menu-table resep-table"><thead><tr><th>Item</th><th>Qty</th><th>Harga</th></tr></thead><tbody>' +
+    (p.items || []).map(it => '<tr><td>' + esc(it.nama) + (it.mix ? '<br><small>🧊 ' + esc(it.mix) + '</small>' : '') + '</td><td>' + Number(it.qty||1) + '</td><td>' + rp(it.harga) + '</td></tr>').join('') +
+    '</tbody></table></div>' +
+    '<div class="resep-total">' + (p.metode === 'kurir' ? '🚚 Alamat: ' + esc(p.alamat || '-') + (p.catatan ? '<br>📝 ' + esc(p.catatan) : '') : '🏍️ Ambil sendiri') + '<br>Total: <b>' + rp(p.total) + '</b></div>' +
+    '<div class="modal-foot"><button class="btn btn-dark" id="psTutup">Tutup</button></div></div>';
+  document.body.appendChild(bg);
+  $('#psTutup').onclick = () => bg.remove();
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+}
+$('#refreshPesanan').onclick = async () => { await cekPesananBaru(true); toast('Pesanan dimuat ulang'); };
+$('#pesananCari').oninput = renderPesanan;
+$('#pesananFilter').onchange = renderPesanan;
+
 function renderLaporan() {
   const t = trxDipilih();
   const omzet = t.reduce((a,x)=>a+Number(x.total),0);
@@ -980,7 +1118,7 @@ $('#simpanTarget').onclick = async () => {
   try { await post('/api/admin/save', { settings:s }); Object.assign(DB.settings,s); renderTarget(); toast('✓ Target tersimpan'); }
   catch(e){ toast(e.message); }
 };
-$('#refreshLaporan').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('Laporan dimuat ulang'); };
+$('#refreshLaporan').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('Insight dimuat ulang'); };
 $('#lapHariIni').onclick = () => { const h=new Date().toISOString().slice(0,10); $('#lapDari').value=h; $('#lapSampai').value=h; renderLaporan(); };
 $('#lapBulanIni').onclick = () => { const d=new Date(); $('#lapDari').value=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); $('#lapSampai').value=d.toISOString().slice(0,10); renderLaporan(); };
 $('#lapTahunIni').onclick = () => { const d=new Date(); $('#lapDari').value=new Date(d.getFullYear(),0,1).toISOString().slice(0,10); $('#lapSampai').value=d.toISOString().slice(0,10); renderLaporan(); };
@@ -1020,7 +1158,7 @@ $('#kirimDrive').onclick = async () => {
     } catch(e) { /* no-cors tidak bisa dibaca */ }
   }
   $('#driveStatus').textContent = sukses+' file dikirim. Cek Google Drive akun kamu, lalu buka Panduan jika belum muncul.';
-  toast('✓ '+sukses+' laporan dikirim');
+  toast('✓ '+sukses+' insight dikirim');
 };
 
 /* =========================================================
@@ -1232,4 +1370,8 @@ $('#btnPrintFallback').onclick = () => {
     const r = await api('/api/admin/session');
     if (r.auth) await masuk();
   } catch (e) { /* biarkan login */ }
+  setInterval(() => cekPesananBaru(false), 15000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) cekPesananBaru(false);
+  });
 })();

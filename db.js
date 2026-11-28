@@ -140,7 +140,9 @@ function seed() {
       { id: uid('m'), nama: 'Teh Pucuk', kategori: 'Drinks', harga: 6000, foto: '', ikon: '🍵', deskripsi: 'Teh pucuk dingin', aktif: true, habis: false, stok: 24, resep: [] }
     ],
     transaksi: [],
-    counter_nota: 0
+    pesanan: [],
+    counter_nota: 0,
+    counter_pesanan: 0
   };
   const unggulan = ['Lumpia BigMac','Lumpia Frozen — Mix 6 pcs','Batagor Goreng','Cheesy Ball'];
   data.menu.forEach(m => {
@@ -171,6 +173,8 @@ function load() {
     if (!Array.isArray(db.settings.karyawan)) { db.settings.karyawan = seed().settings.karyawan; ubah = true; }
     if (!Array.isArray(db.bahan)) { db.bahan = []; ubah = true; }
     if (!Array.isArray(db.transaksi)) { db.transaksi = []; ubah = true; }
+    if (!Array.isArray(db.pesanan)) { db.pesanan = []; ubah = true; }
+    if (typeof db.counter_pesanan !== 'number') { db.counter_pesanan = 0; ubah = true; }
     if (!Array.isArray(db.menu)) { db.menu = []; ubah = true; }
     for (const m of db.menu) {
       const sebelum = JSON.stringify(m);

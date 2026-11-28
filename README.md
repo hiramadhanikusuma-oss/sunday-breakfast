@@ -40,13 +40,16 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbwNi-CrS5TnuUlqyVyBIKF2pf0uhEMe81OvAa6KrvxClA-P5NSaha-zylHvyBM4hRe1/exec
+https://script.google.com/macros/s/AKfycbzM7iuh0iuPfBrJo1mXviusrUt4UzXfFDDbCVNBKok6yf-P0tT7qprd_Wcau8_Jbyvk/exec
 ```
 
 - Login dengan PIN `800008` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi PIN apa pun bisa diketik di HP.
 - PIN yang aktif terlihat di Spreadsheet → sheet `db` → baris `settings` / `pin_admin` (nilainya `800008`). Login tetap memakai hash PIN; website pelanggan tidak menerima data PIN.
 - Data tersimpan di Spreadsheet "Sunday Breakfast — Database" di akun Google `hi.ramadhanikusuma@gmail.com`. ID spreadsheet disimpan di Script Properties `sunday_sheet_id`.
 - Laporan CSV bisa diekspor dan/atau disimpan otomatis ke Google Drive folder "Sunday Breakfast — Laporan".
+- Website pelanggan kini memakai form pemesanan: pilih **Ambil sendiri** atau **Kurir ke rumah**, isi nama, no HP/WhatsApp, alamat, dan catatan. Setelah dikirim, pesanan masuk ke WhatsApp penjual **dan** ke menu **Pesanan Masuk** di admin/APK.
+- Admin/APK mendapat notifikasi Android + badge untuk pesanan baru. APK melakukan polling tiap 5 menit walau aplikasi tertutup (izinkan **Notifikasi** saat diminta).
+- Menu **Receipt** diganti **History**, menu **Laporan** diganti **Insight**.
 
 ### Regenerate & deploy ulang admin online
 

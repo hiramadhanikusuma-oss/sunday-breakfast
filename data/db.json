@@ -664,5 +664,7 @@
     }
   ],
   "transaksi": [],
-  "counter_nota": 0
+  "pesanan": [],
+  "counter_nota": 0,
+  "counter_pesanan": 0
 }

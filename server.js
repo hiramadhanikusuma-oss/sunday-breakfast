@@ -106,6 +106,36 @@ const server = http.createServer(async (req, res) => {
     return json(res, { settings, menu: d.menu });
   }
 
+  /* ---------- PESANAN WEBSITE PELANGGAN ---------- */
+  if (url === '/api/order' && req.method === 'POST') {
+    try {
+      const b = await body(req);
+      const items = Array.isArray(b.items) ? b.items.slice(0, 60).map(it => ({
+        menu_id: String(it.menu_id || ''), nama: String(it.nama || '').slice(0, 120),
+        qty: Math.max(1, Number(it.qty) || 1), harga: Number(it.harga) || 0,
+        mix: String(it.mix || '').slice(0, 240)
+      })) : [];
+      if (!items.length) return json(res, { error: 'Keranjang kosong' }, 400);
+      const d = db.get();
+      d.counter_pesanan = (Number(d.counter_pesanan) || 0) + 1;
+      const pesanan = {
+        id: String(b.id || ('ps_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'))),
+        no_pesanan: String(b.no_pesanan || ('PS-' + String(d.counter_pesanan).padStart(5, '0'))),
+        waktu: new Date().toISOString(),
+        nama: String(b.nama || '').slice(0, 120),
+        hp: String(b.hp || '').slice(0, 40),
+        metode: b.metode === 'kurir' ? 'kurir' : 'ambil',
+        alamat: String(b.alamat || '').slice(0, 500),
+        catatan: String(b.catatan || '').slice(0, 500),
+        items, total: Number(b.total) || 0, status: 'baru', sumber: 'website'
+      };
+      d.pesanan.unshift(pesanan);
+      if (d.pesanan.length > 300) d.pesanan.length = 300;
+      db.save();
+      return json(res, { ok: true, no_pesanan: pesanan.no_pesanan, id: pesanan.id });
+    } catch (e) { return json(res, { error: e.message }, 400); }
+  }
+
   /* ---------- ADMIN AUTH ---------- */
   if (url === '/api/admin/login' && req.method === 'POST') {
     try {
@@ -136,6 +166,35 @@ const server = http.createServer(async (req, res) => {
     if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
     return json(res, db.get());
   }
+  if (url === '/api/admin/pesanan') {
+    if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
+    return json(res, { pesanan: db.get().pesanan || [] });
+  }
+  if (url === '/api/admin/pesanan/hapus' && req.method === 'POST') {
+    if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
+    try {
+      const b = await body(req);
+      const d = db.get();
+      const sebelum = (d.pesanan || []).length;
+      d.pesanan = (d.pesanan || []).filter(x => x.id !== String(b.id || ''));
+      if (d.pesanan.length === sebelum) return json(res, { error: 'Pesanan tidak ditemukan' }, 404);
+      db.save();
+      return json(res, { ok: true });
+    } catch (e) { return json(res, { error: e.message }, 400); }
+  }
+  if (url === '/api/admin/pesanan/status' && req.method === 'POST') {
+    if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
+    try {
+      const b = await body(req);
+      const d = db.get();
+      const status = b.status === 'selesai' ? 'selesai' : 'baru';
+      const p = (d.pesanan || []).find(x => x.id === String(b.id || ''));
+      if (!p) return json(res, { error: 'Pesanan tidak ditemukan' }, 404);
+      p.status = status;
+      db.save();
+      return json(res, { ok: true });
+    } catch (e) { return json(res, { error: e.message }, 400); }
+  }
   if (url === '/api/admin/save' && req.method === 'POST') {
     if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
     try {
@@ -156,7 +215,9 @@ const server = http.createServer(async (req, res) => {
       if (Array.isArray(b.menu)) d.menu = b.menu;
       if (Array.isArray(b.bahan)) d.bahan = b.bahan;
       if (Array.isArray(b.transaksi)) d.transaksi = b.transaksi;
+      if (Array.isArray(b.pesanan)) d.pesanan = b.pesanan;
       if (typeof b.counter_nota === 'number') d.counter_nota = b.counter_nota;
+      if (typeof b.counter_pesanan === 'number') d.counter_pesanan = b.counter_pesanan;
       db.save();
       return json(res, { ok: true });
     } catch (e) { return json(res, { error: e.message }, 400); }

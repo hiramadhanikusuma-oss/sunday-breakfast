@@ -30,6 +30,7 @@ import java.util.UUID;
 
 public class MainActivity extends BridgeActivity {
     private static final int REQ_BT = 71;
+    private static final int REQ_NOTIF = 72;
     private static final UUID SPP_UUID =
             UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
@@ -40,7 +41,18 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         WebView web = getBridge().getWebView();
         web.addJavascriptInterface(new PrinterBridge(), "SundayPrinter");
+        web.addJavascriptInterface(new NotifBridge(), "SundayNotify");
         mintaIzinBluetoothJikaPerlu();
+        mintaIzinNotifikasiJikaPerlu();
+        PesananNotif.jadwalkan(this);
+    }
+
+    private void mintaIzinNotifikasiJikaPerlu() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
+        }
     }
 
     private String[] daftarIzinBluetooth() {
@@ -153,6 +165,45 @@ public class MainActivity extends BridgeActivity {
         } finally {
             try { if (out != null) out.close(); } catch (Exception ignored) {}
             try { if (socket != null) socket.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    public class NotifBridge {
+        @JavascriptInterface
+        public boolean isAvailable() {
+            return true;
+        }
+
+        @JavascriptInterface
+        public void simpanToken(String token) {
+            if (!originDiizinkan()) return;
+            PesananNotif.simpanToken(getApplicationContext(), token);
+        }
+
+        @JavascriptInterface
+        public void notifikasi(String judul, String isi) {
+            if (!originDiizinkan()) return;
+            try {
+                if (Build.VERSION.SDK_INT < 26) return;
+                android.app.NotificationManager nm =
+                        (android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm == null) return;
+                android.app.NotificationChannel ch = new android.app.NotificationChannel(
+                        "pesanan_masuk", "Pesanan Masuk", android.app.NotificationManager.IMPORTANCE_HIGH);
+                nm.createNotificationChannel(ch);
+                android.app.PendingIntent pi = android.app.PendingIntent.getActivity(
+                        getApplicationContext(), 0, new Intent(getApplicationContext(), MainActivity.class),
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT |
+                                (Build.VERSION.SDK_INT >= 23 ? android.app.PendingIntent.FLAG_IMMUTABLE : 0));
+                android.app.Notification.Builder b =
+                        new android.app.Notification.Builder(getApplicationContext(), "pesanan_masuk")
+                                .setSmallIcon(R.mipmap.ic_launcher)
+                                .setContentTitle(judul == null ? "Pesanan baru" : judul)
+                                .setContentText(isi == null ? "" : isi)
+                                .setContentIntent(pi)
+                                .setAutoCancel(true);
+                nm.notify((int) (System.currentTimeMillis() % 100000), b.build());
+            } catch (Exception ignored) {}
         }
     }
 
