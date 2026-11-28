@@ -443,10 +443,6 @@ public class MainActivity extends BridgeActivity {
         final byte[] data = payload == null ? new byte[0] : payload;
 
         final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-            private final Runnable[] tulis = new Runnable[1];
-            private int offset = 0;
-            private int potongan = 20;
-
             @Override
             public void onConnectionStateChange(final BluetoothGatt gatt, int status, int newState) {
                 if (status != BluetoothGatt.GATT_SUCCESS || newState != BluetoothGatt.STATE_CONNECTED) {
@@ -456,7 +452,6 @@ public class MainActivity extends BridgeActivity {
                     return;
                 }
                 try {
-                    potongan = 20;
                     gatt.discoverServices();
                 } catch (Exception e) {
                     pesan[0] = "ERROR: discoverServices gagal (" + e.getMessage() + ")";
@@ -479,44 +474,50 @@ public class MainActivity extends BridgeActivity {
                     latch.countDown();
                     return;
                 }
+                final BluetoothGattCharacteristic kar = c;
                 int p = c.getProperties();
                 try {
-                    c.setWriteType((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0
-                            ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                            : BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+                    c.setWriteType((p & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
+                            ? BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                            : BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
                 } catch (Exception ignored) {}
                 metode[0] = "BLE " + c.getUuid();
-                offset = 0;
-                tulis[0] = () -> {
-                    try {
-                        if (offset >= data.length) {
-                            new Handler(getMainLooper()).postDelayed(() -> {
-                                berhasil[0] = true;
-                                pesan[0] = "OK: struk terkirim via BLE (" + metode[0] + ")";
-                                latch.countDown();
-                            }, 250);
+                /* Kirim berurutan di thread sendiri. Jangan bergantung pada
+                   onCharacteristicWrite: banyak printer thermal murah tidak
+                   mengirim balasan sehingga struk dianggap gagal padahal tercetak. */
+                new Thread(() -> {
+                    int offset = 0;
+                    int macet = 0;
+                    while (offset < data.length) {
+                        int akhir = Math.min(offset + 20, data.length);
+                        boolean kirim;
+                        try {
+                            kar.setValue(Arrays.copyOfRange(data, offset, akhir));
+                            kirim = gatt.writeCharacteristic(kar);
+                        } catch (Throwable e) {
+                            pesan[0] = "ERROR: BLE write gagal (" + e.getMessage() + ")";
+                            latch.countDown();
                             return;
                         }
-                        int akhir = Math.min(offset + potongan, data.length);
-                        c.setValue(Arrays.copyOfRange(data, offset, akhir));
-                        gatt.writeCharacteristic(c);
-                    } catch (Exception e) {
-                        pesan[0] = "ERROR: BLE write gagal (" + e.getMessage() + ")";
-                        latch.countDown();
+                        if (!kirim) {
+                            macet++;
+                            if (macet > 80) {
+                                pesan[0] = "ERROR: BLE write macet di byte " + offset;
+                                latch.countDown();
+                                return;
+                            }
+                            try { Thread.sleep(20); } catch (InterruptedException e) { return; }
+                            continue;
+                        }
+                        macet = 0;
+                        offset = akhir;
+                        try { Thread.sleep(14); } catch (InterruptedException e) { return; }
                     }
-                };
-                tulis[0].run();
-            }
-
-            @Override
-            public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic c, int status) {
-                if (status != BluetoothGatt.GATT_SUCCESS) {
-                    pesan[0] = "ERROR: BLE write ditolak (status " + status + ")";
+                    try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+                    berhasil[0] = true;
+                    pesan[0] = "OK: struk terkirim via BLE (" + metode[0] + ")";
                     latch.countDown();
-                    return;
-                }
-                offset += potongan;
-                new Handler(getMainLooper()).postDelayed(() -> { if (tulis[0] != null) tulis[0].run(); }, 12);
+                }).start();
             }
         };
 
@@ -824,9 +825,22 @@ public class MainActivity extends BridgeActivity {
                 return o.toString();
             }
             try {
-                WebView web = getBridge().getWebView();
                 o.put("android", Build.VERSION.SDK_INT);
-                o.put("url", web.getUrl() == null ? "" : web.getUrl());
+                /* getUrl() wajib di UI thread. Tanpa ini diagnosa melaporkan
+                   "WebView: -" walau halaman sudah termuat. */
+                final String[] urlAman = {""};
+                final CountDownLatch latchUrl = new CountDownLatch(1);
+                try {
+                    runOnUiThread(() -> {
+                        try {
+                            WebView w = getBridge().getWebView();
+                            urlAman[0] = w.getUrl() == null ? "" : w.getUrl();
+                        } catch (Throwable ignored) {}
+                        latchUrl.countDown();
+                    });
+                    latchUrl.await(1500, TimeUnit.MILLISECONDS);
+                } catch (Throwable ignored) {}
+                o.put("url", urlAman[0]);
                 o.put("izinBluetooth", izinBluetooth());
                 o.put("izinScan", izinScan());
                 o.put("izinConnectAndroid", Build.VERSION.SDK_INT >= 31
@@ -835,10 +849,15 @@ public class MainActivity extends BridgeActivity {
                 o.put("izinScanAndroid", Build.VERSION.SDK_INT >= 31
                         ? checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
                         : checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
-                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                BluetoothAdapter adapter = null;
+                try { adapter = adapterBluetooth(); } catch (Throwable ignored) {}
                 o.put("adapter", adapter != null);
-                o.put("aktif", adapter != null && adapter.isEnabled());
-                o.put("scanAktif", adapter != null && izinScan() && adapter.isDiscovering());
+                boolean aktif = false;
+                try { aktif = adapter != null && adapter.isEnabled(); } catch (Throwable ignored) {}
+                o.put("aktif", aktif);
+                boolean scanAktif = false;
+                try { scanAktif = adapter != null && izinScan() && adapter.isDiscovering(); } catch (Throwable ignored) {}
+                o.put("scanAktif", scanAktif);
                 JSONArray terpasang = adapter != null && izinBluetooth()
                         ? daftarPerangkat(adapter) : new JSONArray();
                 o.put("bleScanner", adapter != null && adapter.getBluetoothLeScanner() != null);
@@ -858,8 +877,8 @@ public class MainActivity extends BridgeActivity {
                     terpasang.put(info);
                 }
                 o.put("terpasang", terpasang);
-            } catch (Exception e) {
-                try { o.put("error", e.getMessage()); } catch (Exception ignored) {}
+            } catch (Throwable e) {
+                try { o.put("error", String.valueOf(e.getMessage())); } catch (Throwable ignored) {}
             }
             return o.toString();
         }
@@ -1112,7 +1131,7 @@ public class MainActivity extends BridgeActivity {
 
         /* Async supaya WebView tidak macet saat socket connect. */
         private String kirimBytesKePrinter(String mac, byte[] data) {
-            JSONObject ble = kirimBleBytes(mac, data, 10);
+            JSONObject ble = kirimBleBytes(mac, data, 16);
             if (ble.optBoolean("ok", false)) return ble.optString("pesan");
             JSONObject spp = cobaKoneksiBytes(mac, data);
             if (spp.optBoolean("ok", false)) {

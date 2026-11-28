@@ -1344,7 +1344,7 @@ function kirimBluetooth(teks, base64) {
     if (!mac) return reject(new Error('Pilih printer Bluetooth di Pengaturan dulu'));
     try { if (bridge.mintaIzinBluetooth) bridge.mintaIzinBluetooth(); } catch (e) {}
     const cb = 'sundayBtCb' + Math.random().toString(36).slice(2);
-    const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons')); }, 20000);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Belum ada balasan dari printer. Kalau struk sudah tercetak, abaikan pesan ini.')); }, 45000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
     window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
     try {
@@ -1481,7 +1481,7 @@ function hubungkanPrinterBT(mac) {
     if (!bridge) return reject(new Error('Hubungkan printer hanya tersedia di APK Sunday Admin'));
     if (!mac) return reject(new Error('Pilih printer dulu ya'));
     const cb = 'sundayBtHub' + Math.random().toString(36).slice(2);
-    const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons. Konfirmasi PIN 0000/1234 di HP.')); }, 45000);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Belum ada balasan printer. Kalau PIN muncul, isi 0000/1234. Kalau struk sudah tercetak, berarti sudah tersambung.')); }, 75000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
     window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
     try {
