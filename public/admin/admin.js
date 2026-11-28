@@ -1,6 +1,7 @@
 /* ===== SUNDAY ADMIN — logika dashboard ===== */
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
+const debounce = (fn, ms = 180) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 let DB = null;
 
@@ -134,6 +135,7 @@ function bukaView(nama) {
   $('#pageTitle').textContent = JUDUL[nama] || nama;
   posisiIndikator();
   if (document.body.classList.contains('drawer-buka')) tutupDrawer();
+  renderView('view-' + nama);
 }
 window.addEventListener('resize', posisiIndikator);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(posisiIndikator);
@@ -162,10 +164,28 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.body.classList.contains('drawer-buka')) tutupDrawer();
 });
 
+function viewAktif() {
+  const a = document.querySelector('.view.aktif');
+  return a ? a.id : 'view-dashboard';
+}
+function renderView(id) {
+  const map = {
+    'view-dashboard': renderDashboard, 'view-menu': renderMenu, 'view-kasir': renderKasir,
+    'view-hpp': renderHpp, 'view-biaya': renderBiaya, 'view-karyawan': renderKaryawan,
+    'view-target': renderTarget, 'view-laporan': renderLaporan, 'view-receipt': renderReceipt,
+    'view-pesanan': renderPesanan, 'view-toko': renderToko, 'view-printer': renderPrinter,
+    'view-drive': renderDrive, 'view-pin': renderPin
+  };
+  (map[id] || (() => {}))();
+}
 function renderAll() {
-  renderDashboard(); renderMenu(); renderKasir(); renderHpp();
-  renderBiaya(); renderKaryawan(); renderTarget();
-  renderLaporan(); renderReceipt(); renderPesanan(); renderToko(); renderPrinter(); renderDrive(); renderPin();
+  renderDashboard();
+  const aktif = viewAktif();
+  if (aktif !== 'view-dashboard') renderView(aktif);
+  // update badge nav pesanan ringan
+  const n = (DB.pesanan || []).filter(p => p.status === 'baru').length;
+  const badge = $('#navPesananBadge');
+  if (badge) { badge.textContent = n; badge.hidden = n < 1; }
 }
 function hppOf(m) {
   const resep = Array.isArray(m.resep) ? m.resep : [];
@@ -211,7 +231,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 /* ---------- MENU ---------- */
 let menuDraft = [];
 $('#filterKat').onchange = renderMenu;
-$('#cariMenu').oninput = renderMenu;
+$('#cariMenu').oninput = debounce(renderMenu, 150);
 
 function renderMenu() {
   menuDraft = JSON.parse(JSON.stringify(DB.menu || []));
@@ -549,7 +569,7 @@ $$('#uangCepat button').forEach(b => b.onclick = () => {
   $('#bayarInput').value = n === 'pas' ? total : (n === '0' ? '' : Number(n));
   hitungKembalian();
 });
-$('#kasirCari').addEventListener('input', renderKasir);
+$('#kasirCari').addEventListener('input', debounce(renderKasir, 120));
 $('#kasirKat').addEventListener('change', renderKasir);
 $('#cartClear').onclick = () => { cart = []; $('#bayarInput').value=''; renderCart(); };
 $('#btnBayar').onclick = async () => {
@@ -898,7 +918,7 @@ function lihatStruk(id) {
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
 }
 $('#refreshReceipt').onclick = async () => { DB = await api('/api/admin/data'); renderAll(); toast('History dimuat ulang'); };
-$('#receiptCari').oninput = renderReceipt;
+$('#receiptCari').oninput = debounce(renderReceipt, 150);
 $('#receiptFilter').onchange = renderReceipt;
 
 /* =========================================================
@@ -1012,6 +1032,10 @@ function renderPesanan() {
   $$('[data-lihat-ps]').forEach(b => b.onclick = () => lihatPesanan(b.dataset.lihatPs));
   $$('[data-hapus-ps]').forEach(b => b.onclick = () => hapusPesananAdmin(b.dataset.hapusPs));
 }
+let _pesananSig = '';
+function sigPesanan(items) {
+  return (items || []).map(p => p.id + ':' + p.status + ':' + p.dikonfirmasi + ':' + p.total).join('|');
+}
 async function cekPesananBaru(awal) {
   if (!DB || !$('#appView') || $('#appView').style.display === 'none') return;
   if (!awal && Date.now() < skipPesananPollingHingga) return;
@@ -1020,8 +1044,14 @@ async function cekPesananBaru(awal) {
     const r = await post('/api/admin/pesanan', {});
     if (gen !== pesananPollGen) return;
     const items = Array.isArray(r.pesanan) ? r.pesanan : [];
+    const sig = sigPesanan(items);
+    const berubah = sig !== _pesananSig;
     DB.pesanan = items;
-    renderPesanan();
+    _pesananSig = sig;
+    const n = items.filter(p => p.status === 'baru').length;
+    const badge = $('#navPesananBadge');
+    if (badge) { badge.textContent = n; badge.hidden = n < 1; }
+    if (berubah && (awal || viewAktif() === 'view-pesanan' || viewAktif() === 'view-dashboard')) renderView(viewAktif());
     const dikenal = knownPesanan();
     const baru = items.filter(p => !dikenal.has(p.id));
     items.forEach(p => dikenal.add(p.id));
@@ -1151,7 +1181,7 @@ function lihatPesanan(id) {
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
 }
 $('#refreshPesanan').onclick = async () => { await cekPesananBaru(true); toast('Pesanan dimuat ulang'); };
-$('#pesananCari').oninput = renderPesanan;
+$('#pesananCari').oninput = debounce(renderPesanan, 150);
 $('#pesananFilter').onchange = renderPesanan;
 
 function renderLaporan() {
@@ -1399,8 +1429,8 @@ function muatGambarStruk(src) {
 async function logoRasterEscPos(src, lebarKertas) {
   const img = await muatGambarStruk(src);
   if (!img) return new Uint8Array(0);
-  const maxDot = lebarKertas === 80 ? 576 : lebarKertas === 48 ? 384 : 384;
-  const targetW = Math.min(maxDot, Math.max(120, Math.round(maxDot * 0.62)));
+  const maxDot = lebarKertas === 80 ? 576 : 384; // 48mm ikut printable 58mm
+  const targetW = Math.min(maxDot, Math.max(120, Math.round(maxDot * 0.58)));
   const scale = targetW / (img.naturalWidth || img.width || targetW);
   const w = Math.max(8, Math.floor(targetW / 8) * 8);
   const h = Math.max(1, Math.round((img.naturalHeight || img.height || w) * scale));
@@ -1436,7 +1466,7 @@ async function strukEscPosBase64(trx) {
   const logo = await logoRasterEscPos(p.logo || '/assets/logo-icon.png', lebarKertas());
   const init = [0x1B, 0x40, 0x1B, 0x61, 0x01]; // init + center
   const afterLogo = logo.length ? [0x0A] : [];
-  const feed = [0x0A, 0x0A, 0x0A, 0x1D, 0x56, 0x00]; // feed + full cut/partial
+  const feed = [0x0A, 0x0A, 0x0A, 0x0A]; // feed; hindari partial cut yang bermasalah di sebagian printer
   const out = new Uint8Array(init.length + logo.length + afterLogo.length + textBytes.length + feed.length);
   let o = 0;
   out.set(init, o); o += init.length;
@@ -1662,7 +1692,7 @@ function lebarKertas() {
   const v = Number((DB.settings.printer || {}).lebar || 58);
   return [48, 58, 80].indexOf(v) >= 0 ? v : 58;
 }
-function lebarChar() { return lebarKertas() === 80 ? 42 : lebarKertas() === 48 ? 24 : 32; }
+function lebarChar() { return lebarKertas() === 80 ? 48 : lebarKertas() === 48 ? 32 : 32; }
 function strukLines(trx) {
   const p = DB.settings.printer || {}, s = DB.settings;
   const w = lebarChar();
