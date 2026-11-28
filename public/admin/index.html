@@ -19,8 +19,8 @@
     <h1>Admin Panel</h1>
     <p>Kelola menu, harga, dan branding Sunday Breakfast.</p>
     <form id="loginForm">
-      <label class="field"><span>PIN Admin</span>
-        <input class="input" id="pinInput" type="password" inputmode="numeric" placeholder="Masukkan PIN" autocomplete="current-password" required>
+      <label class="field"><span>PIN Admin (huruf &amp; angka)</span>
+        <input class="input" id="pinInput" type="password" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Masukkan PIN" autocomplete="current-password" required>
       </label>
       <button class="btn btn-dark btn-block" type="submit">Masuk →</button>
       <div class="err" id="loginErr"></div>
@@ -359,12 +359,13 @@
             <div class="field full" id="btPrinterBox">
               <span>Printer Bluetooth (khusus APK Android)</span>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <select class="select" id="printerMac" style="flex:1;min-width:200px"><option value="">Pilih printer yang sudah dipasangkan</option></select>
-                <button type="button" class="btn btn-ghost btn-sm" id="btnCariPrinter">Cari Printer</button>
+                <select class="select" id="printerMac" style="flex:1;min-width:200px"><option value="">Pilih printer Bluetooth</option></select>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnCariPrinter">Cari Printer Baru</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnBukaBluetooth">Buka Setelan BT</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnTestBluetooth">Test Print BT</button>
               </div>
               <input class="input" id="printerMacManual" placeholder="Atau masukkan MAC, mis. 00:11:22:33:44:55" style="margin-top:8px">
-              <small style="color:var(--muted);margin-top:8px;display:block" id="btPrinterHint">Pasangkan printer di Setelan Bluetooth HP dulu. PIN RPP02N biasanya 0000.</small>
+              <small style="color:var(--muted);margin-top:8px;display:block" id="btPrinterHint">Tekan “Cari Printer Baru” atau “Buka Setelan BT” untuk memasangkan printer. PIN RPP02N biasanya 0000.</small>
             </div>
             <label class="field"><span>Lebar Kertas</span><select class="select" id="printerLebar"><option value="58">58 mm</option><option value="80">80 mm</option></select></label>
             <label class="field"><span>Logo Header</span><input class="input" id="printerLogo" placeholder="/assets/logo-icon.png"></label>
@@ -384,7 +385,8 @@
         </div>
         <div class="panel">
           <div class="panel-head"><div><h3>Ganti PIN Admin</h3><p>Kosongkan jika tidak ingin mengubah PIN.</p></div></div>
-          <label class="field"><span>PIN Baru (minimal 4 digit)</span><input class="input" id="pinBaru" type="password" inputmode="numeric" placeholder="PIN baru"></label>
+          <label class="field"><span>PIN saat ini (tersimpan di Sheet <code>db</code> → <code>settings</code> → <code>pin_admin</code>)</span><input class="input" id="pinTersimpan" type="text" value="sunday123" readonly style="font-family:monospace"></label>
+          <label class="field"><span>PIN Baru (minimal 4 karakter, boleh huruf)</span><input class="input" id="pinBaru" type="password" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="PIN baru"></label>
           <div class="save-bar"><button class="btn btn-dark" id="simpanPin">Simpan PIN</button></div>
         </div>
         <div class="panel">

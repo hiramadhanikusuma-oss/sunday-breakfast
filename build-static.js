@@ -5,7 +5,7 @@ const path = require('path');
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
 const DIST = path.join(ROOT, 'dist');
-const PUBLIC_API = 'https://script.google.com/macros/s/AKfycbxd54YdFNgvLHtSVnnyndmm00m6Sphnp0Mg_KoffeKYQIlX5e-clbxQwdSExNxgSlmA/exec?r=%2Fapi%2Fpublic';
+const PUBLIC_API = 'https://script.google.com/macros/s/AKfycbw6YFaziMGu7VNMuUwqivlkBur_BT8xgyxSM-MEUQ42BubDSnaxavCYRikM9Js1F9_1/exec?r=%2Fapi%2Fpublic';
 
 fs.mkdirSync(DIST, { recursive: true });
 if (fs.existsSync(DIST)) {
@@ -29,10 +29,12 @@ fs.writeFileSync(
 );
 
 const db = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'db.json'), 'utf8'));
+const settingsPublik = { ...db.settings };
+['pin_hash', 'pin_salt', 'pin_admin'].forEach(k => delete settingsPublik[k]);
 fs.mkdirSync(path.join(DIST, 'data'), { recursive: true });
 fs.writeFileSync(
   path.join(DIST, 'data', 'public.json'),
-  JSON.stringify({ settings: db.settings, menu: db.menu }, null, 2)
+  JSON.stringify({ settings: settingsPublik, menu: db.menu }, null, 2)
 );
 
 console.log('Static site dibuat di dist/');

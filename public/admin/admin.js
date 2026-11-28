@@ -160,7 +160,7 @@ document.addEventListener('keydown', e => {
 function renderAll() {
   renderDashboard(); renderMenu(); renderKasir(); renderHpp();
   renderBiaya(); renderKaryawan(); renderTarget();
-  renderLaporan(); renderReceipt(); renderToko(); renderPrinter(); renderDrive();
+  renderLaporan(); renderReceipt(); renderToko(); renderPrinter(); renderDrive(); renderPin();
 }
 function hppOf(m) {
   const resep = Array.isArray(m.resep) ? m.resep : [];
@@ -399,11 +399,20 @@ $('#btnCopy').onclick = async () => {
 };
 
 /* ---------- PIN ---------- */
+function renderPin() {
+  const el = $('#pinTersimpan');
+  if (el) el.value = (DB.settings && DB.settings.pin_admin) || 'sunday123';
+}
 $('#simpanPin').onclick = async () => {
   const p = $('#pinBaru').value.trim();
   if (!p) return toast('Isi PIN baru dulu');
-  try { await post('/api/admin/save', { pin_baru: p }); $('#pinBaru').value = ''; toast('✓ PIN berhasil diganti'); }
-  catch (e) { toast(e.message); }
+  try {
+    await post('/api/admin/save', { pin_baru: p });
+    DB.settings.pin_admin = p;
+    $('#pinBaru').value = '';
+    renderPin();
+    toast('✓ PIN berhasil diganti & tersimpan di Sheet');
+  } catch (e) { toast(e.message); }
 };
 
 /* =========================================================
@@ -589,9 +598,9 @@ function editorResep(id) {
   const bg = document.createElement('div'); bg.className = 'modal-bg';
   function draw() {
     const total = resep.reduce((a,r) => a + Number(r.qty||0) * Number(r.harga||0), 0);
-    bg.innerHTML = '<div class="modal-box"><h3>Resep — '+esc(m.nama)+'</h3>' +
+    bg.innerHTML = '<div class="modal-box resep-modal"><h3>Resep — '+esc(m.nama)+'</h3>' +
       '<p style="color:var(--muted);font-size:.76rem;margin:6px 0 16px">Isi bahan, jumlah, dan harga satuan. HPP dihitung otomatis.</p>' +
-      '<table class="menu-table resep-table"><thead><tr><th>Bahan</th><th>Qty</th><th>Satuan</th><th>Harga Satuan</th><th>Subtotal</th><th></th></tr></thead><tbody>' +
+      '<div class="table-scroll resep-scroll"><table class="menu-table resep-table"><thead><tr><th>Bahan</th><th>Qty</th><th>Satuan</th><th>Harga Satuan</th><th>Subtotal</th><th></th></tr></thead><tbody>' +
       resep.map((r,i) => '<tr>' +
         '<td><input class="input" data-r="'+i+'" data-k="nama" value="'+esc(r.nama||'')+'" placeholder="Nama bahan"></td>' +
         '<td><input class="input" style="width:70px" type="number" min="0" step="any" data-r="'+i+'" data-k="qty" value="'+Number(r.qty||0)+'"></td>' +
@@ -599,7 +608,7 @@ function editorResep(id) {
         '<td><input class="input" style="width:110px" type="number" min="0" data-r="'+i+'" data-k="harga" value="'+Number(r.harga||0)+'"></td>' +
         '<td><b>'+rp(Number(r.qty||0)*Number(r.harga||0))+'</b></td>' +
         '<td><button class="btn btn-danger btn-sm" data-rd="'+i+'">✕</button></td></tr>').join('') +
-      '</tbody></table>' +
+      '</tbody></table></div>' +
       '<button class="btn btn-ghost btn-sm" id="rTambah" style="margin-top:12px">+ Tambah Bahan</button>' +
       '<div class="resep-total">HPP per porsi: <b>'+rp(total)+'</b></div>' +
       '<div class="modal-foot"><button class="btn btn-ghost" id="rBatal">Batal</button><button class="btn btn-dark" id="rOk">Simpan Resep</button></div></div>';
@@ -1049,6 +1058,31 @@ function cetakBluetooth(trx) {
     .then(r => toast(r.ok ? '✓ ' + r.pesan : r.pesan))
     .catch(e => toast(e.message));
 }
+let daftarPrinterBT = [];
+function isiSelectPrinter(daftar) {
+  const select = $('#printerMac');
+  const tersimpan = ((DB.settings.printer || {}).mac || '').trim();
+  const peta = {};
+  (daftar || []).forEach(d => { if (d && d.mac) peta[d.mac] = d; });
+  if (tersimpan && !peta[tersimpan]) peta[tersimpan] = { nama:'Printer tersimpan', mac:tersimpan };
+  daftarPrinterBT = Object.keys(peta).map(mac => peta[mac]);
+  select.innerHTML = '<option value="">Pilih printer Bluetooth</option>' +
+    daftarPrinterBT.map(d => '<option value="'+esc(d.mac)+'">'+esc(d.nama||d.mac)+' — '+esc(d.mac)+'</option>').join('');
+  select.value = tersimpan;
+  $('#printerMacManual').value = tersimpan;
+}
+function cariPrinterBT() {
+  return new Promise((resolve, reject) => {
+    const bridge = btBridge();
+    if (!bridge) return reject(new Error('Cari printer hanya tersedia di APK Sunday Admin'));
+    const cb = 'sundayBtScan' + Math.random().toString(36).slice(2);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Pencarian printer timeout')); }, 25000);
+    function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
+    window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
+    try { bridge.cariPerangkat(cb); }
+    catch (e) { bersihkan(); reject(e); }
+  });
+}
 function renderPrinter() {
   const p = DB.settings.printer || {};
   $('#printerLebar').value = p.lebar || 58;
@@ -1056,33 +1090,53 @@ function renderPrinter() {
   $('#printerLogo').value = p.logo || '/assets/logo-icon.png';
   $('#printerHeader').value = p.header || '';
   $('#printerFooter').value = p.footer || '';
-  const select = $('#printerMac'), hint = $('#btPrinterHint');
+  const hint = $('#btPrinterHint');
   const bridge = btBridge();
   if (bridge) {
     let daftar = [], pesan = '';
-    try { daftar = JSON.parse(bridge.getPaired()); }
-    catch (e) { pesan = String(bridge.getPaired()); }
-    select.innerHTML = '<option value="">Pilih printer yang sudah dipasangkan</option>' +
-      daftar.map(d => '<option value="'+esc(d.mac)+'">'+esc(d.nama)+' — '+esc(d.mac)+'</option>').join('');
-    select.disabled = false;
+    const raw = bridge.getPaired();
+    try {
+      const o = JSON.parse(raw);
+      daftar = Array.isArray(o) ? o : (o.perangkat || []);
+    } catch (e) { pesan = String(raw); }
+    isiSelectPrinter(daftar);
+    $('#printerMac').disabled = false;
     $('#btnCariPrinter').disabled = false;
+    $('#btnBukaBluetooth').disabled = false;
     $('#btnTestBluetooth').disabled = false;
     hint.textContent = pesan && pesan.indexOf('ERROR') === 0
-      ? pesan + '. Nyalakan Bluetooth & izinkan Nearby Devices.'
-      : (daftar.length ? 'Pilih printer di atas, lalu Simpan Pengaturan Struk.' : 'Belum ada printer terpasang. Pair dulu di Setelan Bluetooth HP.');
+      ? pesan + '. Nyalakan Bluetooth, izinkan Nearby Devices/lokasi, lalu tekan “Buka Setelan BT”.'
+      : (daftar.length ? 'Pilih printer di atas, lalu Simpan Pengaturan Struk.' : 'Belum ada printer terpasang. Tekan “Cari Printer Baru” atau “Buka Setelan BT”.');
   } else {
-    select.innerHTML = '<option value="">Buka di APK untuk memilih printer</option>';
-    select.disabled = true;
+    isiSelectPrinter([]);
+    $('#printerMac').disabled = true;
     $('#btnCariPrinter').disabled = true;
+    $('#btnBukaBluetooth').disabled = true;
     $('#btnTestBluetooth').disabled = true;
-    hint.textContent = 'Fitur cetak langsung aktif di APK Android Sunday Admin.';
+    hint.textContent = 'Fitur cari & cetak Bluetooth aktif di APK Android Sunday Admin.';
   }
-  select.value = p.mac || '';
-  $('#printerMacManual').value = p.mac || '';
   updatePreviewStruk();
 }
 if ($('#printerMac')) $('#printerMac').onchange = e => { $('#printerMacManual').value = e.target.value; };
-if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = () => { renderPrinter(); toast('Daftar printer diperbarui'); };
+if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = async () => {
+  toast('Mencari printer Bluetooth...');
+  try {
+    const r = await cariPrinterBT();
+    if (!r.ok) return toast(r.pesan || 'Gagal mencari printer');
+    isiSelectPrinter(daftarPrinterBT.concat(r.perangkat || []));
+    const n = (r.perangkat || []).length;
+    $('#btPrinterHint').textContent = n
+      ? 'Ditemukan '+n+' perangkat. Pilih printer lalu Simpan Pengaturan Struk.'
+      : 'Tidak ada perangkat baru. Coba “Buka Setelan BT” untuk memasangkan printer.';
+    toast(n ? '✓ '+n+' perangkat ditemukan' : 'Perangkat baru tidak ditemukan');
+  } catch (e) { toast(e.message); }
+};
+if ($('#btnBukaBluetooth')) $('#btnBukaBluetooth').onclick = () => {
+  const bridge = btBridge();
+  if (!bridge) return toast('Buka halaman ini dari APK Sunday Admin');
+  try { bridge.bukaSetelanBluetooth(); toast('Membuka Setelan Bluetooth'); }
+  catch (e) { toast(e.message); }
+};
 if ($('#btnTestBluetooth')) $('#btnTestBluetooth').onclick = () => {
   cetakBluetooth({ no_nota:'TEST-BT', waktu:new Date().toISOString(), kasir:'Admin',
     items:[{nama:'Lumpia BigMac',harga:5000,qty:1}], total:5000, bayar:5000, kembalian:0, metode:'Cash' });

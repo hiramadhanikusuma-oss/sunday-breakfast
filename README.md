@@ -40,10 +40,11 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbxd54YdFNgvLHtSVnnyndmm00m6Sphnp0Mg_KoffeKYQIlX5e-clbxQwdSExNxgSlmA/exec
+https://script.google.com/macros/s/AKfycbw6YFaziMGu7VNMuUwqivlkBur_BT8xgyxSM-MEUQ42BubDSnaxavCYRikM9Js1F9_1/exec
 ```
 
-- Login dengan PIN `sunday123` (bisa diganti di Pengaturan).
+- Login dengan PIN `sunday123` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi huruf seperti `sunday123` bisa diketik di HP.
+- PIN yang aktif terlihat di Spreadsheet → sheet `db` → baris `settings` / `pin_admin` (nilainya `sunday123`). Login tetap memakai hash PIN; website pelanggan tidak menerima data PIN.
 - Data tersimpan di Spreadsheet "Sunday Breakfast — Database" di akun Google `hi.ramadhanikusuma@gmail.com`. ID spreadsheet disimpan di Script Properties `sunday_sheet_id`.
 - Laporan CSV bisa diekspor dan/atau disimpan otomatis ke Google Drive folder "Sunday Breakfast — Laporan".
 
@@ -73,9 +74,9 @@ gradlew.bat assembleDebug
 APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`. Install di HP Android dengan `adb install app-debug.apk` atau copy file lalu buka (izinkan install dari sumber tidak dikenal).
 
 ### Cetak struk ke printer Bluetooth (RPP02N / 58 mm)
-1. Pair printer di **Setelan Bluetooth HP** (PIN bawaan RPP02N biasanya `0000`).
-2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** saat diminta.
-3. Masuk **Pengaturan → Printer Bluetooth**, pilih nama printer yang sudah terpasang, lalu **Simpan Pengaturan Struk**.
+1. Nyalakan Bluetooth dan pair printer di **Setelan Bluetooth HP** (PIN bawaan RPP02N biasanya `0000`).
+2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** (Android 12+) atau **Lokasi** (Android 11 ke bawah) saat diminta.
+3. Masuk **Pengaturan → Printer Bluetooth**. Tekan **Cari Printer Baru** untuk memindai perangkat, atau **Buka Setelan BT** jika printer belum terpasang. Pilih printer (atau isi MAC manual), lalu **Simpan Pengaturan Struk**.
 4. Tekan **Test Print BT** untuk memastikan struk keluar.
 5. Setelah itu, pembayaran akan otomatis cetak ke printer Bluetooth. Tombol **BT** di Receipt dan **Cetak Bluetooth** di modal struk juga tersedia.
 

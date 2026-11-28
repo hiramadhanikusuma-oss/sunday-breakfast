@@ -44,7 +44,7 @@ function doGet(e) {
   if (r === '/api/admin/session') return json_({ auth: cekToken_(p.token) });
   if (r === '/api/public') {
     var pub = bacaDB_();
-    var dataPub = { settings: pub.settings, menu: pub.menu };
+    var dataPub = { settings: settingsPublik_(pub.settings), menu: pub.menu };
     var cb = String(p.callback || '');
     if (cb && /^[A-Za-z_$][\\w$]*$/.test(cb)) return teks_(cb + '(' + JSON.stringify(dataPub) + ');');
     return json_(dataPub);
@@ -123,6 +123,12 @@ function sha256_(s) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(s))
     .map(function (x) { return ('0' + ((x & 0xFF).toString(16))).slice(-2); }).join('');
 }
+/* Data untuk website pelanggan: jangan pernah kirim kredensial admin. */
+function settingsPublik_(s) {
+  var out = Object.assign({}, s || {});
+  ['pin_hash', 'pin_salt', 'pin_admin'].forEach(function (k) { delete out[k]; });
+  return out;
+}
 function cekToken_(token) {
   if (!token) return false;
   var p = PropertiesService.getScriptProperties();
@@ -130,9 +136,10 @@ function cekToken_(token) {
 }
 function login_(pin) {
   var s = bacaDB_().settings || {};
-  if (sha256_((s.pin_salt || '') + ':' + String(pin || '')) !== s.pin_hash) {
-    return { ok: false, error: 'PIN salah' };
-  }
+  var pinBenar = s.pin_hash
+    ? sha256_((s.pin_salt || '') + ':' + String(pin || '')) === s.pin_hash
+    : String(s.pin_admin || '') === String(pin || '');
+  if (!pinBenar) return { ok: false, error: 'PIN salah' };
   var token = Utilities.getUuid() + '-' + Utilities.getUuid();
   PropertiesService.getScriptProperties().setProperties({
     sunday_token: token,
@@ -190,6 +197,7 @@ function sheetDB_() {
     var baris = [['collection', 'id', 'json']];
     baris.push(['meta', 'counter_nota', String(seed.counter_nota || 0)]);
     baris.push(['settings', 'all', JSON.stringify(seed.settings || {})]);
+    baris.push(['settings', 'pin_admin', String(seed.settings && seed.settings.pin_admin || 'sunday123')]);
     (seed.bahan || []).forEach(function (x, i) { baris.push(['bahan', x.id || ('bahan_' + i), JSON.stringify(x)]); });
     (seed.menu || []).forEach(function (x, i) { baris.push(['menu', x.id || ('menu_' + i), JSON.stringify(x)]); });
     (seed.transaksi || []).forEach(function (x, i) { baris.push(['transaksi', x.id || ('trx_' + i), JSON.stringify(x)]); });
@@ -207,6 +215,10 @@ function bacaDB_() {
       if (id === 'counter_nota') out.counter_nota = Number(teks) || 0;
       continue;
     }
+    if (col === 'settings' && id === 'pin_admin') {
+      out.settings.pin_admin = String(teks || '');
+      continue;
+    }
     try {
       var v = JSON.parse(teks);
       if (col === 'settings') out.settings = Object.assign(out.settings, v);
@@ -215,12 +227,24 @@ function bacaDB_() {
       else if (col === 'transaksi') out.transaksi.push(v);
     } catch (e) {}
   }
+  /* Sheet lama belum punya baris pin_admin: tambahkan sekali saat dibaca. */
+  if (!out.settings.pin_admin) {
+    out.settings.pin_admin = 'sunday123';
+    try {
+      var propPin = PropertiesService.getScriptProperties();
+      if (!propPin.getProperty('pin_admin_tersimpan')) {
+        tulisDB_(out);
+        propPin.setProperty('pin_admin_tersimpan', '1');
+      }
+    } catch (e) {}
+  }
   return out;
 }
 function tulisDB_(d) {
   var baris = [['collection', 'id', 'json']];
   baris.push(['meta', 'counter_nota', String(d.counter_nota || 0)]);
   baris.push(['settings', 'all', JSON.stringify(d.settings || {})]);
+  baris.push(['settings', 'pin_admin', String(d.settings && d.settings.pin_admin || 'sunday123')]);
   (d.bahan || []).forEach(function (x, i) { baris.push(['bahan', x.id || ('bahan_' + i), JSON.stringify(x)]); });
   (d.menu || []).forEach(function (x, i) { baris.push(['menu', x.id || ('menu_' + i), JSON.stringify(x)]); });
   (d.transaksi || []).forEach(function (x, i) { baris.push(['transaksi', x.id || ('trx_' + i), JSON.stringify(x)]); });
@@ -240,10 +264,11 @@ function simpan_(b) {
     boleh.forEach(function (k) {
       if (b.settings[k] !== undefined) d.settings[k] = b.settings[k];
     });
-    if (b.pin_baru) {
-      if (String(b.pin_baru).length < 4) return { error: 'PIN minimal 4 digit' };
-      d.settings.pin_hash = sha256_((d.settings.pin_salt || '') + ':' + String(b.pin_baru));
-    }
+  }
+  if (b.pin_baru) {
+    if (String(b.pin_baru).length < 4) return { error: 'PIN minimal 4 karakter' };
+    d.settings.pin_hash = sha256_((d.settings.pin_salt || '') + ':' + String(b.pin_baru));
+    d.settings.pin_admin = String(b.pin_baru); // terlihat di Sheet db → settings → pin_admin
   }
   if (Array.isArray(b.menu)) d.menu = b.menu;
   if (Array.isArray(b.bahan)) d.bahan = b.bahan;

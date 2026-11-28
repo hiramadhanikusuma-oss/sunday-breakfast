@@ -101,7 +101,9 @@ const server = http.createServer(async (req, res) => {
   /* ---------- PUBLIC API ---------- */
   if (url === '/api/public') {
     const d = db.get();
-    return json(res, { settings: d.settings, menu: d.menu });
+    const settings = { ...d.settings };
+    ['pin_hash', 'pin_salt', 'pin_admin'].forEach(k => delete settings[k]);
+    return json(res, { settings, menu: d.menu });
   }
 
   /* ---------- ADMIN AUTH ---------- */
@@ -145,10 +147,11 @@ const server = http.createServer(async (req, res) => {
           'biaya_bulanan', 'karyawan', 'target_laba', 'target_biaya', 'target_hpp', 'susut', 'pajak']) {
           if (b.settings[key] !== undefined) d.settings[key] = b.settings[key];
         }
-        if (b.pin_baru) {
-          if (String(b.pin_baru).length < 4) return json(res, { error: 'PIN minimal 4 digit' }, 400);
-          d.settings.pin_hash = db.hashPin(String(b.pin_baru), d.settings.pin_salt);
-        }
+      }
+      if (b.pin_baru) {
+        if (String(b.pin_baru).length < 4) return json(res, { error: 'PIN minimal 4 karakter' }, 400);
+        d.settings.pin_hash = db.hashPin(String(b.pin_baru), d.settings.pin_salt);
+        d.settings.pin_admin = String(b.pin_baru); // tersimpan & terlihat di data/settings
       }
       if (Array.isArray(b.menu)) d.menu = b.menu;
       if (Array.isArray(b.bahan)) d.bahan = b.bahan;
