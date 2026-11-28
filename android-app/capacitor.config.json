@@ -1,2 +1,2 @@
-{ "appId": "com.sundaybreakfast.admin", "appName": "Sunday Admin", "webDir": "www", "server": { "url": "https://script.google.com/macros/s/AKfycbwmx4Es-jQPaDl7UteGMsuDVSYMg3f-elT3yE6AyRLMhW_sM4YdsYnz418LyaGSbP7Z/exec", "androidScheme": "https" } }
+{ "appId": "com.sundaybreakfast.admin", "appName": "Sunday Admin", "webDir": "www", "server": { "url": "https://script.google.com/macros/s/AKfycbzuO1P4Sj2DJ4M-cSsKMwyLRGVz9Qlji5aW2fwGo2SwMREtudJ-SjfnKD4isvuwTHqo/exec", "androidScheme": "https" } }
 

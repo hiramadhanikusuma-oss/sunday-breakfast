@@ -1429,8 +1429,8 @@ function muatGambarStruk(src) {
 async function logoRasterEscPos(src, lebarKertas) {
   const img = await muatGambarStruk(src);
   if (!img) return new Uint8Array(0);
-  const maxDot = lebarKertas === 80 ? 576 : 384; // 48mm ikut printable 58mm
-  const targetW = Math.min(maxDot, Math.max(120, Math.round(maxDot * 0.58)));
+  const maxDot = lebarKertas === 80 ? 576 : lebarKertas === 48 ? 256 : 384;
+  const targetW = Math.min(maxDot, Math.max(96, Math.round(maxDot * 0.72)));
   const scale = targetW / (img.naturalWidth || img.width || targetW);
   const w = Math.max(8, Math.floor(targetW / 8) * 8);
   const h = Math.max(1, Math.round((img.naturalHeight || img.height || w) * scale));
@@ -1692,7 +1692,7 @@ function lebarKertas() {
   const v = Number((DB.settings.printer || {}).lebar || 58);
   return [48, 58, 80].indexOf(v) >= 0 ? v : 58;
 }
-function lebarChar() { return lebarKertas() === 80 ? 48 : lebarKertas() === 48 ? 32 : 32; }
+function lebarChar() { return lebarKertas() === 80 ? 48 : lebarKertas() === 48 ? 24 : 32; }
 function strukLines(trx) {
   const p = DB.settings.printer || {}, s = DB.settings;
   const w = lebarChar();
