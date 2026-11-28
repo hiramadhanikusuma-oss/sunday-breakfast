@@ -60,10 +60,19 @@ https://script.google.com/macros/s/AKfycbxvAyP_lOttzZ88Pefu3jTOxkmcdjmKew1YQUnDW
 node build-apps-script.js
 cd apps-script
 npx clasp push -f
-npx clasp deploy --description "Admin online"
+npx clasp deploy -i <ID_DEPLOYMENT_PRODUKSI> -d "Admin online"
 ```
 
-File `apps-script/Code.gs` dan `appsscript.json` dibuat otomatis — jangan diedit manual. Setiap deploy menghasilkan URL `/exec` baru; perbarui URL di `android-app/capacitor.config.json` bila URL berubah.
+File `apps-script/Code.gs` dan `appsscript.json` dibuat otomatis — jangan diedit manual.
+
+> **PENTING:** jangan memakai `clasp deploy` tanpa `-i`, dan **jangan pernah menghapus (undeploy) deployment produksi**.
+> Website pelanggan (`dist/config.js`) dan APK menyimpan URL `/exec` itu. Kalau deployment dihapus,
+> URL menjadi 404 → pesanan pelanggan **hilang tanpa pesan error** (POST `no-cors` tetap terlihat "berhasil").
+> Selalu perbarui versi di deployment yang sama dengan `-i`.
+>
+> Kalau URL harus berubah: jalankan `node build-static.js`, deploy ulang `dist/` ke Vercel, lalu rebuild APK.
+> Cek cepat: `curl -s "https://sunday-breakfast.vercel.app/config.js"` → buka URL `/exec?r=/api/public`
+> harus mengembalikan JSON berisi `menu`.
 
 ## APK Android (WebView, gratis)
 

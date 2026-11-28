@@ -60,6 +60,10 @@ function doGet(e) {
     var val = prop.getProperty('res_' + rid);
     if (!val) return json_({ error: 'Hasil tidak ditemukan' });
     prop.deleteProperty('res_' + rid);
+    /* Dukung JSONP: website pelanggan (domain lain) perlu memastikan
+       pesanannya benar-benar tersimpan, bukan hanya "terkirim". */
+    var cbRes = String(p.callback || '');
+    if (cbRes && /^[A-Za-z_$][\\w$]*$/.test(cbRes)) return teks_(cbRes + '(' + val + ');');
     return teks_(val);
   }
   var url = '';

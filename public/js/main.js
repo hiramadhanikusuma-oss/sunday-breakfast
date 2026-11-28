@@ -324,15 +324,29 @@ function urlPesanan() {
   return '/api/order';
 }
 async function kirimPesananOnline(payload) {
+  const rid = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   try {
     await fetch(urlPesanan(), {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(Object.assign({ r: '/api/order' }, payload))
+      body: JSON.stringify(Object.assign({ r: '/api/order', rid }, payload))
     });
-    return true;
-  } catch (e) { return false; }
+  } catch (e) { return ''; }
+  return rid;
+}
+/* Pastikan pesanan benar-benar tersimpan di server admin.
+   Tanpa ini, kalau alamat server mati, pelanggan tetap melihat "berhasil". */
+async function verifikasiPesanan(rid, noPesanan) {
+  if (!rid || typeof apiJsonp !== 'function') return;
+  try {
+    const cek = await apiJsonp(urlPesanan() + '?r=' + encodeURIComponent('/api/result') +
+      '&rid=' + encodeURIComponent(rid));
+    if (cek && cek.ok) toast('✓ Pesanan ' + noPesanan + ' masuk ke aplikasi admin');
+    else toast('⚠ Pesanan ' + noPesanan + ' belum masuk admin. Kirim ulang atau chat WA kami ya.');
+  } catch (e) {
+    toast('⚠ Belum bisa memastikan pesanan masuk admin. Kalau ragu, chat WA kami ya.');
+  }
 }
 async function kirimWA() {
   const items = lineItems();
@@ -381,6 +395,7 @@ async function kirimWA() {
   const w = window.open(url, '_blank');
   if (!w) window.location.href = url;
   toast(online ? 'Pesanan masuk ke WA & aplikasi admin ✔' : 'Pesanan diarahkan ke WhatsApp ✔');
+  if (online) verifikasiPesanan(online, noPesanan);
 }
 if ($('#opKirim')) $('#opKirim').onclick = kirimWA;
 ['#opNama', '#opHp', '#opAlamat'].forEach(id => {
