@@ -80,7 +80,7 @@ gradlew.bat assembleDebug
 APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`. Install di HP Android dengan `adb install app-debug.apk` atau copy file lalu buka (izinkan install dari sumber tidak dikenal).
 
 ### Cetak struk ke printer Bluetooth (RPP02N / 58 mm)
-APK sekarang memakai alur **satu tombol** seperti aplikasi POS: cari perangkat, pasangkan, buka koneksi SPP, simpan printer, lalu cetak uji. Tidak perlu berpindah ke Setelan Bluetooth HP.
+APK sekarang memakai alur **satu tombol** seperti aplikasi POS: cari perangkat (Bluetooth klasik **dan BLE**), hubungkan, simpan printer, lalu cetak uji. RPP02N sebagian batch bersifat **dual-mode/BLE** sehingga tidak muncul di Setelan Bluetooth HP — sama seperti yang dimanfaatkan aplikasi POS lain. Aplikasi mencoba koneksi **BLE/GATT dulu** (tanpa pairing klasik), lalu fallback ke SPP/RFCOMM bila perlu.
 
 1. Nyalakan printer RPP02N (LED menyala/berkedip sesuai mode pairing).
 2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** (Android 12+) atau **Lokasi** (Android 11 ke bawah) saat diminta. Bila terlewat, masuk **Pengaturan → Printer Bluetooth** dan tekan **Izinkan BT**. Error “error invoking” sudah ditangani: tombol ini tidak lagi melempar exception ke WebView.

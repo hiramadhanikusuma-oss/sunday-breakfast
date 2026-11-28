@@ -3,7 +3,15 @@ package com.sundaybreakfast.admin;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -24,6 +32,7 @@ import org.json.JSONObject;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +48,12 @@ public class MainActivity extends BridgeActivity {
             UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     private BroadcastReceiver penerimaScan = null;
+    private BluetoothLeScanner pemindaiBle = null;
+    private ScanCallback callbackScanBle = null;
+    private BluetoothGatt gattAktif = null;
+    private JSONArray daftarBleTerakhir = new JSONArray();
+    private String infoGattTerakhir = "";
+    private String modePrinterTerakhir = "";
     private BroadcastReceiver penerimaHubungkan = null;
     private String macHubungkanDitunggu = "";
     private BondListener bondListener = null;
@@ -62,6 +77,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onDestroy() {
         hentikanScan();
+        tutupGatt();
         hentikanReceiverHubungkan();
         super.onDestroy();
     }
@@ -128,6 +144,17 @@ public class MainActivity extends BridgeActivity {
             getBridge().getWebView().evaluateJavascript(
                     "try{window." + callback + "(" + isi.toString() + ")}catch(e){}", null);
         } catch (Exception ignored) {}
+    }
+
+    private void kirimScan(String cb, boolean ok, String pesan, JSONArray perangkat, boolean selesai) {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("ok", ok);
+            o.put("pesan", pesan);
+            o.put("perangkat", perangkat == null ? new JSONArray() : perangkat);
+            o.put("selesai", selesai);
+        } catch (Exception ignored) {}
+        kirimKeJS(cb, o);
     }
 
     private String namaCallback(String callback) {
@@ -258,6 +285,249 @@ public class MainActivity extends BridgeActivity {
             try { unregisterReceiver(penerimaScan); } catch (Exception ignored) {}
             penerimaScan = null;
         }
+        if (pemindaiBle != null && callbackScanBle != null) {
+            try { pemindaiBle.stopScan(callbackScanBle); } catch (Exception ignored) {}
+        }
+        pemindaiBle = null;
+        callbackScanBle = null;
+    }
+
+    private void tutupGatt() {
+        BluetoothGatt g = gattAktif;
+        gattAktif = null;
+        if (g != null) {
+            try { g.disconnect(); } catch (Exception ignored) {}
+            try { g.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private BluetoothAdapter adapterBluetooth() {
+        BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter a = bm == null ? null : bm.getAdapter();
+        return a == null ? BluetoothAdapter.getDefaultAdapter() : a;
+    }
+
+    /* RPP02N sebagian batch dual-mode/BLE: tidak muncul di Setelan Bluetooth HP,
+       jadi harus discan dan ditulis lewat GATT tanpa pairing klasik. */
+    private void mulaiScanBle(final BluetoothAdapter adapter, final String cb,
+                              final JSONArray perangkat, final Map<String, Boolean> dilihat) {
+        try {
+            pemindaiBle = adapter.getBluetoothLeScanner();
+            if (pemindaiBle == null) return;
+            callbackScanBle = new ScanCallback() {
+                private void terima(final ScanResult r) {
+                    if (r == null) return;
+                    BluetoothDevice d = r.getDevice();
+                    if (d == null || d.getAddress() == null || dilihat.containsKey(d.getAddress())) return;
+                    dilihat.put(d.getAddress(), true);
+                    String nama = d.getName();
+                    if (r.getScanRecord() != null && r.getScanRecord().getDeviceName() != null) {
+                        nama = r.getScanRecord().getDeviceName();
+                    }
+                    if (nama == null || nama.isEmpty()) nama = d.getAddress();
+                    JSONObject o = new JSONObject();
+                    try {
+                        o.put("nama", nama);
+                        o.put("mac", d.getAddress());
+                        o.put("jenis", "BLE");
+                        o.put("terpasang", false);
+                        o.put("bond", "NONE");
+                        o.put("rssi", r.getRssi());
+                        perangkat.put(o);
+                        daftarBleTerakhir.put(new JSONObject(o.toString()));
+                    } catch (Exception ignored) {}
+                    kirimScan(cb, true, "Ditemukan: " + nama + " (BLE)", perangkat, false);
+                }
+
+                @Override public void onScanResult(int callbackType, ScanResult result) { terima(result); }
+
+                @Override public void onBatchScanResults(List<ScanResult> hasil) {
+                    if (hasil == null) return;
+                    for (ScanResult r : hasil) terima(r);
+                }
+
+                @Override public void onScanFailed(int errorCode) {
+                    infoGattTerakhir = "Scan BLE gagal (kode " + errorCode + ")";
+                }
+            };
+            pemindaiBle.startScan(callbackScanBle);
+        } catch (SecurityException e) {
+            infoGattTerakhir = "Scan BLE ditolak: izin Nearby devices belum diberikan";
+        } catch (Exception e) {
+            infoGattTerakhir = "Scan BLE error: " + e.getMessage();
+        }
+    }
+
+    private BluetoothGattCharacteristic pilihKarakter(BluetoothGatt gatt, StringBuilder info) {
+        if (gatt == null) return null;
+        String[] utama = {
+                "0000ff02-0000-1000-8000-00805f9b34fb",
+                "0000ffe1-0000-1000-8000-00805f9b34fb",
+                "0000ae01-0000-1000-8000-00805f9b34fb",
+                "49535343-8841-43f4-a8d4-ecbe34729bb3",
+                "0000ff82-0000-1000-8000-00805f9b34fb",
+                "0000fff2-0000-1000-8000-00805f9b34fb",
+                "00002af1-0000-1000-8000-00805f9b34fb"
+        };
+        List<BluetoothGattCharacteristic> writable = new ArrayList<>();
+        for (BluetoothGattService s : gatt.getServices()) {
+            info.append("[").append(s.getUuid()).append(" ");
+            for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
+                int p = c.getProperties();
+                if ((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0 ||
+                        (p & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0) {
+                    writable.add(c);
+                }
+                info.append(c.getUuid()).append(p == 0 ? "" : "(w)").append(" ");
+            }
+            info.append("] ");
+        }
+        for (String uuid : utama) {
+            for (BluetoothGattCharacteristic c : writable) {
+                if (c.getUuid() != null && uuid.equalsIgnoreCase(c.getUuid().toString())) return c;
+            }
+        }
+        return writable.isEmpty() ? null : writable.get(0);
+    }
+
+    /* Kirim ESC/POS lewat BLE. Mengembalikan hasilHubungkan() agar pola JS tetap sama. */
+    private JSONObject kirimBle(final String mac, String teks, int detikTimeout) {
+        final String alamat = mac == null ? "" : mac.trim();
+        BluetoothAdapter adapter = adapterBluetooth();
+        if (adapter == null) return hasilHubungkan(false, "ERROR: Bluetooth tidak tersedia", alamat, "", BluetoothDevice.BOND_NONE, null);
+        if (!adapter.isEnabled()) return hasilHubungkan(false, "ERROR: Bluetooth masih mati", alamat, "", BluetoothDevice.BOND_NONE, null);
+        if (Build.VERSION.SDK_INT >= 31 &&
+                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            return hasilHubungkan(false, "ERROR: izin Bluetooth belum diberikan", alamat, "", BluetoothDevice.BOND_NONE, null);
+        }
+        final BluetoothDevice device;
+        try { device = adapter.getRemoteDevice(alamat); }
+        catch (Exception e) {
+            return hasilHubungkan(false, "ERROR: MAC tidak valid", alamat, "", BluetoothDevice.BOND_NONE, null);
+        }
+        final String nama = device.getName() == null ? alamat : device.getName();
+        final StringBuilder info = new StringBuilder();
+        final CountDownLatch latch = new CountDownLatch(1);
+        final boolean[] berhasil = {false};
+        final String[] pesan = {"ERROR:BLE"};
+        final String[] metode = {""};
+
+        String isi = teks == null ? "" : teks;
+        final byte[] data;
+        try {
+            byte[] awal = new byte[]{(byte) 0x1B, 0x40};
+            byte[] isiByte = isi.getBytes("UTF-8");
+            byte[] akhir = new byte[]{0x0A, 0x0A, 0x0A};
+            data = new byte[awal.length + isiByte.length + akhir.length];
+            System.arraycopy(awal, 0, data, 0, awal.length);
+            System.arraycopy(isiByte, 0, data, awal.length, isiByte.length);
+            System.arraycopy(akhir, 0, data, awal.length + isiByte.length, akhir.length);
+        } catch (Exception e) {
+            return hasilHubungkan(false, "ERROR: encoding struk gagal", alamat, nama, BluetoothDevice.BOND_NONE, null);
+        }
+
+        final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
+            private final Runnable[] tulis = new Runnable[1];
+            private int offset = 0;
+            private int potongan = 20;
+
+            @Override
+            public void onConnectionStateChange(final BluetoothGatt gatt, int status, int newState) {
+                if (status != BluetoothGatt.GATT_SUCCESS || newState != BluetoothGatt.STATE_CONNECTED) {
+                    pesan[0] = "ERROR: BLE connect gagal (status " + status + ", state " + newState + ")";
+                    infoGattTerakhir = info.toString();
+                    latch.countDown();
+                    return;
+                }
+                try {
+                    potongan = 20;
+                    gatt.discoverServices();
+                } catch (Exception e) {
+                    pesan[0] = "ERROR: discoverServices gagal (" + e.getMessage() + ")";
+                    latch.countDown();
+                }
+            }
+
+            @Override
+            public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    pesan[0] = "ERROR: GATT services gagal (status " + status + ")";
+                    infoGattTerakhir = info.toString();
+                    latch.countDown();
+                    return;
+                }
+                BluetoothGattCharacteristic c = pilihKarakter(gatt, info);
+                infoGattTerakhir = info.toString();
+                if (c == null) {
+                    pesan[0] = "ERROR: tidak ada characteristic WRITE. " + info;
+                    latch.countDown();
+                    return;
+                }
+                int p = c.getProperties();
+                try {
+                    c.setWriteType((p & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0
+                            ? BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                            : BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+                } catch (Exception ignored) {}
+                metode[0] = "BLE " + c.getUuid();
+                offset = 0;
+                tulis[0] = () -> {
+                    try {
+                        if (offset >= data.length) {
+                            new Handler(getMainLooper()).postDelayed(() -> {
+                                berhasil[0] = true;
+                                pesan[0] = "OK: " + (isi.isEmpty() ? "terhubung" : "struk terkirim")
+                                        + " via BLE (" + metode[0] + ")";
+                                latch.countDown();
+                            }, 250);
+                            return;
+                        }
+                        int akhir = Math.min(offset + potongan, data.length);
+                        c.setValue(Arrays.copyOfRange(data, offset, akhir));
+                        gatt.writeCharacteristic(c);
+                    } catch (Exception e) {
+                        pesan[0] = "ERROR: BLE write gagal (" + e.getMessage() + ")";
+                        latch.countDown();
+                    }
+                };
+                tulis[0].run();
+            }
+
+            @Override
+            public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic c, int status) {
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    pesan[0] = "ERROR: BLE write ditolak (status " + status + ")";
+                    latch.countDown();
+                    return;
+                }
+                offset += potongan;
+                new Handler(getMainLooper()).postDelayed(() -> { if (tulis[0] != null) tulis[0].run(); }, 12);
+            }
+        };
+
+        try {
+            final BluetoothGatt[] gattRef = new BluetoothGatt[1];
+            runOnUiThread(() -> {
+                try {
+                    gattRef[0] = device.connectGatt(getApplicationContext(), false, gattCallback);
+                    gattAktif = gattRef[0];
+                } catch (Exception e) {
+                    pesan[0] = "ERROR: BLE connect exception (" + e.getMessage() + ")";
+                    latch.countDown();
+                }
+            });
+            if (!latch.await(detikTimeout, TimeUnit.SECONDS)) {
+                pesan[0] = "ERROR: BLE timeout " + detikTimeout + " detik";
+                infoGattTerakhir = info.length() > 0 ? info.toString() : "tidak ada respons GATT";
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            pesan[0] = "ERROR: BLE terhenti";
+        }
+        tutupGatt();
+        if (berhasil[0]) modePrinterTerakhir = "BLE";
+        return hasilHubungkan(berhasil[0], pesan[0], alamat, nama, BluetoothDevice.BOND_NONE,
+                berhasil[0] ? metode[0] : null);
     }
 
     private JSONObject cobaKoneksi(String mac, String teks) {
@@ -334,7 +604,21 @@ public class MainActivity extends BridgeActivity {
     }
 
     private String kirimKePrinter(String mac, String teks) {
-        return cobaKoneksi(mac, teks).optString("pesan");
+        if ("SPP".equals(modePrinterTerakhir)) {
+            JSONObject spp = cobaKoneksi(mac, teks);
+            if (spp.optBoolean("ok", false)) return spp.optString("pesan");
+            JSONObject ble = kirimBle(mac, teks, 7);
+            if (ble.optBoolean("ok", false)) return ble.optString("pesan");
+            return spp.optString("pesan") + " | BLE: " + ble.optString("pesan");
+        }
+        JSONObject ble = kirimBle(mac, teks, 7);
+        if (ble.optBoolean("ok", false)) return ble.optString("pesan");
+        JSONObject spp = cobaKoneksi(mac, teks);
+        if (spp.optBoolean("ok", false)) {
+            modePrinterTerakhir = "SPP";
+            return spp.optString("pesan");
+        }
+        return spp.optString("pesan") + " | BLE: " + ble.optString("pesan");
     }
 
     /* Satu tombol: mulai pairing bila perlu, lalu buka socket SPP untuk membuktikan koneksi. */
@@ -349,6 +633,20 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         final String nama = device.getName() == null ? alamat : device.getName();
+        final String uji = "\nSUNDAY BREAKFAST\nTEST KONEKSI\n" + nama + "\n" + alamat + "\n";
+
+        /* Coba BLE dulu: printer dual-mode tidak perlu pairing klasik. */
+        JSONObject ble = kirimBle(alamat, uji, 9);
+        if (ble.optBoolean("ok", false)) {
+            try {
+                ble.put("pesan", ble.optString("pesan") + " (tanpa pairing klasik)");
+                ble.put("bond", statusBond(device.getBondState()));
+            } catch (Exception ignored) {}
+            runOnUiThread(() -> kirimKeJS(cb, ble));
+            return;
+        }
+        final String catatanBle = " | BLE: " + ble.optString("pesan");
+
         final CountDownLatch latch = new CountDownLatch(1);
         final boolean[] bondOk = { device.getBondState() == BluetoothDevice.BOND_BONDED };
         final int[] bondState = { device.getBondState() };
@@ -387,14 +685,15 @@ public class MainActivity extends BridgeActivity {
         }
 
         if (adapter.isDiscovering()) adapter.cancelDiscovery();
-        JSONObject hasil = cobaKoneksi(alamat,
-                "\nSUNDAY BREAKFAST\nTEST KONEKSI\n" + nama + "\n" + alamat + "\n");
+        JSONObject hasil = cobaKoneksi(alamat, uji);
         try {
             boolean ok = hasil.optBoolean("ok", false);
             String pesan = hasil.optString("pesan", "");
+            if (!ok) pesan += catatanBle;
             if (!bondPesan[0].isEmpty() && (!ok || bondPesan[0].startsWith("WARN"))) {
-                hasil.put("pesan", pesan + " | " + bondPesan[0]);
+                pesan += " | " + bondPesan[0];
             }
+            hasil.put("pesan", pesan);
             hasil.put("bond", statusBond(bondState[0]));
         } catch (Exception ignored) {}
         final JSONObject akhir = hasil;
@@ -463,8 +762,25 @@ public class MainActivity extends BridgeActivity {
                 o.put("adapter", adapter != null);
                 o.put("aktif", adapter != null && adapter.isEnabled());
                 o.put("scanAktif", adapter != null && izinScan() && adapter.isDiscovering());
-                o.put("terpasang", adapter != null && izinBluetooth()
-                        ? daftarPerangkat(adapter) : new JSONArray());
+                JSONArray terpasang = adapter != null && izinBluetooth()
+                        ? daftarPerangkat(adapter) : new JSONArray();
+                o.put("bleScanner", adapter != null && izinScan() && adapter.getBluetoothLeScanner() != null);
+                o.put("gattInfo", infoGattTerakhir);
+                for (int i = 0; i < daftarBleTerakhir.length(); i++) {
+                    JSONObject b = daftarBleTerakhir.getJSONObject(i);
+                    JSONObject e = new JSONObject();
+                    e.put("nama", "BLE: " + b.optString("nama"));
+                    e.put("mac", b.optString("mac"));
+                    terpasang.put(e);
+                }
+                if (!infoGattTerakhir.isEmpty()) {
+                    JSONObject info = new JSONObject();
+                    info.put("nama", "INFO BLE/GATT: " + infoGattTerakhir.substring(
+                            0, Math.min(400, infoGattTerakhir.length())));
+                    info.put("mac", "-");
+                    terpasang.put(info);
+                }
+                o.put("terpasang", terpasang);
             } catch (Exception e) {
                 try { o.put("error", e.getMessage()); } catch (Exception ignored) {}
             }
@@ -576,7 +892,9 @@ public class MainActivity extends BridgeActivity {
                 catch (Exception ignored) {}
             }
             final boolean[] selesaiDikirim = {false};
-            kirimScan(cb, true, "Mencari printer...", perangkat, false);
+            kirimScan(cb, true, "Mencari printer Bluetooth & BLE...", perangkat, false);
+            daftarBleTerakhir = new JSONArray();
+            mulaiScanBle(adapter, cb, perangkat, dilihat);
 
             final IntentFilter filter = new IntentFilter();
             filter.addAction(BluetoothDevice.ACTION_FOUND);
@@ -637,22 +955,6 @@ public class MainActivity extends BridgeActivity {
                 hentikanScan();
                 kirimScan(cb, true, "OK: pencarian dihentikan otomatis", perangkat, true);
             }, 20000);
-        }
-
-        private void kirimScan(String cb, boolean ok, String pesan, JSONArray perangkat, boolean selesai) {
-            JSONObject o = hasilScan(ok, pesan, perangkat);
-            try { o.put("selesai", selesai); } catch (Exception ignored) {}
-            kirimKeJS(cb, o);
-        }
-
-        private JSONObject hasilScan(boolean ok, String pesan, JSONArray perangkat) {
-            JSONObject o = new JSONObject();
-            try {
-                o.put("ok", ok);
-                o.put("pesan", pesan);
-                o.put("perangkat", perangkat == null ? new JSONArray() : perangkat);
-            } catch (Exception ignored) {}
-            return o;
         }
 
         @JavascriptInterface
