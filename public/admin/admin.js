@@ -1327,41 +1327,93 @@ function cetakBluetooth(trx) {
     .catch(e => { setBtStatus(e.message || String(e), true); toast(e.message); });
 }
 let daftarPrinterBT = [];
+function macTersimpan() { return ((DB.settings.printer || {}).mac || '').trim(); }
 function isiSelectPrinter(daftar) {
   const select = $('#printerMac');
-  const tersimpan = ((DB.settings.printer || {}).mac || '').trim();
+  const tersimpan = macTersimpan();
   const peta = {};
   (daftar || []).forEach(d => { if (d && d.mac) peta[d.mac] = d; });
-  if (tersimpan && !peta[tersimpan]) peta[tersimpan] = { nama:'Printer tersimpan', mac:tersimpan };
+  if (tersimpan && !peta[tersimpan]) {
+    peta[tersimpan] = { nama: ((DB.settings.printer || {}).nama || 'Printer tersimpan'), mac: tersimpan };
+  }
   daftarPrinterBT = Object.keys(peta).map(mac => peta[mac]);
-  select.innerHTML = '<option value="">Pilih printer Bluetooth</option>' +
+  select.innerHTML = '<option value="">Printer tersimpan / pilih manual</option>' +
     daftarPrinterBT.map(d => '<option value="'+esc(d.mac)+'">'+esc(d.nama||d.mac)+' — '+esc(d.mac)+
       (d.bond ? ' ('+(d.bond==='BONDED'?'terpasang':d.bond==='BONDING'?'menyambung':'belum dipasang')+')' : '')+'</option>').join('');
   select.value = tersimpan;
   $('#printerMacManual').value = tersimpan;
+  renderDaftarPrinterBT(daftarPrinterBT);
 }
-function pasangkanPrinterBT(mac) {
+function renderDaftarPrinterBT(daftar) {
+  const box = $('#btDeviceList');
+  if (!box) return;
+  const aktif = macTersimpan();
+  if (!daftar || !daftar.length) {
+    box.innerHTML = '<div class="bt-device kosong">Belum ada printer. Nyalakan printer lalu tekan “Cari & Hubungkan Printer”.</div>';
+    return;
+  }
+  box.innerHTML = daftar.map(d => {
+    const mac = ((d && d.mac) || '').trim();
+    if (!mac) return '';
+    const nama = d.nama || mac;
+    const bond = d.bond === 'BONDED' ? 'terpasang' : d.bond === 'BONDING' ? 'menyambung' : 'belum dipasang';
+    return '<div class="bt-device"><div><b>'+esc(nama)+(mac === aktif ? ' • aktif' : '')+'</b>'+
+      '<small>'+esc(mac)+' • '+bond+'</small></div>'+
+      '<button type="button" class="btn btn-accent btn-sm" data-hubungkan="'+esc(mac)+'">Hubungkan</button></div>';
+  }).join('');
+}
+function teksTestBT() {
+  return 'SUNDAY BREAKFAST\nTEST KONEKSI\n' + new Date().toLocaleString('id-ID') + '\n';
+}
+function hubungkanPrinterBT(mac) {
   return new Promise((resolve, reject) => {
     const bridge = btBridge();
-    if (!bridge || !bridge.pasangkanPerangkat)
-      return reject(new Error('Pasangkan Printer hanya tersedia di APK Sunday Admin terbaru'));
+    if (!bridge) return reject(new Error('Hubungkan printer hanya tersedia di APK Sunday Admin'));
     if (!mac) return reject(new Error('Pilih printer dulu ya'));
-    const cb = 'sundayBtPair' + Math.random().toString(36).slice(2);
-    const to = setTimeout(() => { bersihkan(); reject(new Error('Pairing timeout. Konfirmasi PIN di HP lalu coba lagi.')); }, 45000);
+    const cb = 'sundayBtHub' + Math.random().toString(36).slice(2);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons. Konfirmasi PIN 0000/1234 di HP.')); }, 45000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
-    window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons pairing' }); };
-    try { bridge.pasangkanPerangkat(mac, cb); }
-    catch (e) { bersihkan(); reject(e); }
+    window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
+    try {
+      if (typeof bridge.hubungkanPerangkat === 'function') bridge.hubungkanPerangkat(mac, cb);
+      else bridge.pasangkanPerangkat(mac, cb);
+    } catch (e) { bersihkan(); reject(e); }
   });
 }
-function cariPrinterBT() {
+async function sambungkanPrinterBT(mac, nama) {
+  if (!mac) return toast('Pilih printer dulu ya');
+  setBtStatus('Menghubungkan ' + mac + '… Kalau muncul PIN, masukkan 0000 (atau 1234).', false);
+  toast('Menyambungkan printer…');
+  try {
+    const r = await hubungkanPrinterBT(mac);
+    if (!r.ok) { setBtStatus(r.pesan || 'Gagal menghubungkan printer', true); toast(r.pesan); return; }
+    const p = { ...(DB.settings.printer || {}), mac,
+      nama: nama || r.nama || ((DB.settings.printer || {}).nama) || 'Printer Bluetooth' };
+    DB.settings.printer = p;
+    $('#printerMac').value = mac;
+    $('#printerMacManual').value = mac;
+    try { await post('/api/admin/save', { settings: { printer: p } }); } catch (e) {}
+    setBtStatus((r.pesan || 'Printer tersambung') + ' | pengaturan tersimpan. Mencoba cetak uji…', false);
+    let uji = '';
+    try { const t = await kirimBluetooth(teksTestBT()); uji = t.pesan || ''; }
+    catch (e) { uji = 'Uji cetak: ' + (e.message || e); }
+    setBtStatus((r.pesan || 'Printer tersambung') + ' | ' + uji, false);
+    toast('✓ Printer tersambung & tersimpan');
+    renderPrinter();
+  } catch (e) { setBtStatus(e.message || String(e), true); toast(e.message); }
+}
+function cariPrinterBT(onUpdate) {
   return new Promise((resolve, reject) => {
     const bridge = btBridge();
     if (!bridge) return reject(new Error('Cari printer hanya tersedia di APK Sunday Admin'));
     const cb = 'sundayBtScan' + Math.random().toString(36).slice(2);
-    const to = setTimeout(() => { bersihkan(); reject(new Error('Pencarian printer timeout')); }, 25000);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Pencarian printer timeout')); }, 28000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
-    window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
+    window[cb] = res => {
+      const data = res || {};
+      if (typeof onUpdate === 'function') onUpdate(data);
+      if (data.selesai) { bersihkan(); resolve(data); }
+    };
     try { bridge.cariPerangkat(cb); }
     catch (e) { bersihkan(); reject(e); }
   });
@@ -1375,80 +1427,86 @@ function renderPrinter() {
   $('#printerFooter').value = p.footer || '';
   const hint = $('#btPrinterHint');
   const bridge = btBridge();
+  const tombol = ['#printerMac','#btnHubungkanBT','#btnCariPrinter','#btnIzinBT','#btnPairBT',
+    '#btnBukaBluetooth','#btnDiagnosaBT','#btnTestBluetooth'];
   if (bridge) {
     let daftar = [], pesan = '';
-    const raw = bridge.getPaired();
     try {
+      const raw = bridge.getPaired();
       const o = JSON.parse(raw);
       daftar = Array.isArray(o) ? o : (o.perangkat || []);
-    } catch (e) { pesan = String(raw); }
+    } catch (e) { pesan = String(e.message || e); }
     isiSelectPrinter(daftar);
     if (!macPrinter() && daftar.length === 1 && daftar[0] && daftar[0].mac) {
       $('#printerMac').value = daftar[0].mac;
       $('#printerMacManual').value = daftar[0].mac;
     }
-    $('#printerMac').disabled = false;
-    $('#btnCariPrinter').disabled = false;
-    $('#btnIzinBT').disabled = false;
-    if ($('#btnPairBT')) $('#btnPairBT').disabled = false;
-    $('#btnBukaBluetooth').disabled = false;
-    $('#btnDiagnosaBT').disabled = false;
-    $('#btnTestBluetooth').disabled = false;
-    hint.textContent = pesan && pesan.indexOf('ERROR') === 0
-      ? pesan + '. Tekan “Izinkan BT”, nyalakan Bluetooth, lalu cari lagi.'
-      : (macPrinter()
-        ? 'Printer dipilih. Tekan “Pasangkan Printer” kalau belum terpasang, lalu Simpan Pengaturan Struk & Test Print BT.'
-        : 'Urutan: Izinkan BT → nyalakan printer → Cari Printer Baru → pilih → Pasangkan Printer (PIN 0000/1234).');
+    tombol.forEach(s => { const el = $(s); if (el) el.disabled = false; });
+    if (pesan.indexOf('ERROR') === 0) {
+      hint.textContent = pesan + '. Tekan “Izinkan BT”, nyalakan Bluetooth, lalu cari lagi.';
+    } else if (macPrinter()) {
+      hint.textContent = 'Printer aktif: ' + ((DB.settings.printer || {}).nama || macPrinter()) +
+        ' (' + macPrinter() + '). Tekan “Cari & Hubungkan Printer” untuk mengganti, atau “Test Print BT”.';
+    } else {
+      hint.innerHTML = 'Nyalakan printer → tekan <b>Cari &amp; Hubungkan Printer</b> → pilih printer. ' +
+        'Aplikasi akan memasangkan dan menguji koneksi otomatis. PIN RPP02N biasanya <code>0000</code> atau <code>1234</code>.';
+    }
   } else {
     isiSelectPrinter([]);
-    $('#printerMac').disabled = true;
-    $('#btnCariPrinter').disabled = true;
-    $('#btnIzinBT').disabled = true;
-    if ($('#btnPairBT')) $('#btnPairBT').disabled = true;
-    $('#btnBukaBluetooth').disabled = true;
-    $('#btnDiagnosaBT').disabled = true;
-    $('#btnTestBluetooth').disabled = true;
+    tombol.forEach(s => { const el = $(s); if (el) el.disabled = true; });
     hint.textContent = 'Fitur cari & cetak Bluetooth aktif di APK Android Sunday Admin.';
   }
   updatePreviewStruk();
 }
 if ($('#printerMac')) $('#printerMac').onchange = e => { $('#printerMacManual').value = e.target.value; };
-if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = async () => {
-  toast('Mencari printer Bluetooth...');
-  try {
-    const r = await cariPrinterBT();
-    if (!r.ok) return toast(r.pesan || 'Gagal mencari printer');
-    isiSelectPrinter(daftarPrinterBT.concat(r.perangkat || []));
-    const n = (r.perangkat || []).length;
-    $('#btPrinterHint').textContent = n
-      ? 'Ditemukan '+n+' perangkat. Pilih printer lalu tekan “Pasangkan Printer” (PIN 0000/1234).'
-      : 'Tidak ada perangkat baru. Nyalakan printer lalu cari lagi, atau buka Setelan BT.';
-    toast(n ? '✓ '+n+' perangkat ditemukan' : 'Perangkat baru tidak ditemukan');
-  } catch (e) { toast(e.message); }
+if ($('#btDeviceList')) $('#btDeviceList').onclick = e => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-hubungkan]') : null;
+  if (!b) return;
+  const d = daftarPrinterBT.find(x => x.mac === b.dataset.hubungkan) || {};
+  sambungkanPrinterBT(b.dataset.hubungkan, d.nama);
 };
+function mulaiCariPrinter(autoHubungkan) {
+  setBtStatus('Mencari printer Bluetooth…', false);
+  return cariPrinterBT(data => {
+    const d = data.perangkat || [];
+    if (d.length) {
+      isiSelectPrinter(daftarPrinterBT.concat(d));
+      $('#btPrinterHint').textContent = data.pesan || ('Mencari… ' + d.length + ' perangkat ditemukan');
+    }
+  }).then(async r => {
+    const d = r.perangkat || [];
+    if (!r.ok) { setBtStatus(r.pesan || 'Gagal mencari printer', true); return; }
+    isiSelectPrinter(daftarPrinterBT.concat(d));
+    if (!d.length) {
+      setBtStatus('Tidak ada perangkat. Nyalakan printer RPP02N lalu cari lagi.', true);
+      return;
+    }
+    $('#btPrinterHint').textContent = d.length + ' perangkat ditemukan. Tekan “Hubungkan” pada printer yang benar.';
+    if (autoHubungkan && !macTersimpan() && d.length === 1) {
+      await sambungkanPrinterBT(d[0].mac, d[0].nama);
+    } else {
+      setBtStatus(d.length + ' perangkat ditemukan. Pilih “Hubungkan” pada printer yang benar.', false);
+      toast('✓ ' + d.length + ' perangkat ditemukan');
+    }
+  }).catch(e => { setBtStatus(e.message || String(e), true); toast(e.message); });
+}
+if ($('#btnHubungkanBT')) $('#btnHubungkanBT').onclick = () => mulaiCariPrinter(true);
+if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = () => mulaiCariPrinter(false);
 if ($('#btnIzinBT')) $('#btnIzinBT').onclick = () => {
   const bridge = btBridge();
   if (!bridge) return setBtStatus('Izinkan Bluetooth hanya tersedia di APK Sunday Admin.', true);
   try {
     const r = bridge.mintaIzinBluetooth ? bridge.mintaIzinBluetooth() : 'OK: izin Bluetooth sudah diberikan';
-    setBtStatus(r, String(r).indexOf('ERROR') === 0);
-    toast(r);
+    setBtStatus(String(r), String(r).indexOf('ERROR') === 0);
+    toast(String(r));
     renderPrinter();
   } catch (e) { setBtStatus('Gagal minta izin Bluetooth: ' + (e.message || e), true); }
 };
 if ($('#btnPairBT')) $('#btnPairBT').onclick = async () => {
-  const bridge = btBridge();
-  if (!bridge) return setBtStatus('Pasangkan Printer hanya tersedia di APK Sunday Admin.', true);
   const mac = macPrinter();
   if (!mac) return toast('Pilih printer dulu ya (Cari Printer Baru)');
-  setBtStatus('Memulai pairing ' + mac + '. Kalau muncul permintaan PIN, masukkan 0000 (atau 1234).', false);
-  toast('Menunggu konfirmasi pairing di HP...');
-  try {
-    const r = await pasangkanPrinterBT(mac);
-    setBtStatus(r.pesan || 'Pairing selesai', !r.ok);
-    toast(r.ok ? '✓ ' + r.pesan : r.pesan);
-    if (r.ok) renderPrinter();
-  } catch (e) { setBtStatus(e.message || String(e), true); toast(e.message); }
+  try { await sambungkanPrinterBT(mac); }
+  catch (e) { setBtStatus(e.message || String(e), true); toast(e.message); }
 };
 if ($('#btnBukaBluetooth')) $('#btnBukaBluetooth').onclick = () => {
   const bridge = btBridge();

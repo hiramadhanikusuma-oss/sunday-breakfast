@@ -219,6 +219,12 @@ body.drawer-buka { overflow: hidden; }
 .bt-status { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #eef4ff; color: #1b3f86; font-size: .7rem; line-height: 1.5; word-break: break-word; border: 1px solid #d5e2ff; }
 .bt-status.gagal { background: #fff0f0; color: #9c2020; border-color: #ffd5d5; }
 .bt-status[hidden] { display: none; }
+.bt-device-list { display: grid; gap: 8px; margin-top: 10px; }
+.bt-device { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #d5e2ff; border-radius: 10px; background: #f7faff; }
+.bt-device b { display: block; font-size: .78rem; color: #1b3f86; }
+.bt-device small { display: block; font-size: .66rem; color: #64748b; margin-top: 2px; word-break: break-all; }
+.bt-device .btn { flex: 0 0 auto; }
+.bt-device.kosong { color: #64748b; font-size: .72rem; justify-content: center; background: transparent; border-style: dashed; }
 .unggulan-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; }
 .unggulan-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--paper); text-align: center; }
 .unggulan-card img, .unggulan-card .ph { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; background: var(--paper-2); display: grid; place-items: center; font-size: 2rem; }

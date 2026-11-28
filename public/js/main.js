@@ -162,7 +162,6 @@ function setQty(menuId, mix, qty) {
   else lines.push({ menu_id: menuId, qty, mix: mix || undefined });
   renderMenu($('#katNav .aktif') && !$('#katNav .aktif').textContent.includes('Semua') ? kategoriAktif() : '');
   renderBar();
-  if (qty > 0 && $('#orderPanel').style.display === 'none') bukaFormPesanan();
 }
 function kategoriAktif() {
   const a = $('#katNav .aktif');
@@ -275,12 +274,11 @@ function renderPanel() {
     setQty(l.menu_id, l.mix || null, l.qty + (b.dataset.a === 'plus' ? 1 : -1));
   });
 }
-function bukaFormPesanan() {
+function bukaFormPesanan(fokus) {
   const p = $('#orderPanel');
   p.style.display = 'block';
   renderPanel();
-  toast('Wajib: isi nama & no WhatsApp, lalu tekan tombol hijau 🙂');
-  setTimeout(() => { const f = $('#opNama'); if (f && !f.value) f.focus({ preventScroll:true }); }, 250);
+  if (fokus) setTimeout(() => { const f = $('#opNama'); if (f && !f.value) f.focus({ preventScroll:true }); }, 250);
 }
 function dataFormPesanan() {
   const pilih = document.querySelector('input[name=kirim]:checked');
@@ -384,20 +382,27 @@ async function kirimWA() {
   if (!w) window.location.href = url;
   toast(online ? 'Pesanan masuk ke WA & aplikasi admin ✔' : 'Pesanan diarahkan ke WhatsApp ✔');
 }
-$('#obWa').onclick = kirimWA;
 if ($('#opKirim')) $('#opKirim').onclick = kirimWA;
 ['#opNama', '#opHp', '#opAlamat'].forEach(id => {
   const el = $(id);
   if (el) el.addEventListener('input', bersihError);
 });
-$('#btnWaHeader').onclick = bukaFormPesanan;
+$('#btnWaHeader').onclick = () => bukaFormPesanan(true);
+$('#obWa').onclick = () => {
+  if ($('#orderPanel').style.display === 'none') { bukaFormPesanan(true); return; }
+  kirimWA();
+};
 $('#obInfo').onclick = () => {
   const p = $('#orderPanel');
-  const buka = p.style.display === 'none';
-  p.style.display = buka ? 'block' : 'none';
-  if (buka) renderPanel();
+  if (p.style.display === 'none') bukaFormPesanan(true);
+  else p.style.display = 'none';
 };
 $('#opTutup').onclick = () => { $('#orderPanel').style.display = 'none'; };
+$('#opTambah').onclick = () => {
+  $('#orderPanel').style.display = 'none';
+  const target = document.getElementById('menu');
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 function updateFormPengiriman() {
   const r = document.querySelector('input[name=kirim]:checked');
   const kurir = !!r && r.value === 'kurir';

@@ -325,6 +325,8 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
 }
 .op-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-head); font-size: 1.25rem; font-weight: 800; margin-bottom: 6px; }
 .op-head button { font-size: 1.1rem; color: var(--muted); padding: 6px 10px; }
+.op-head-actions { display: flex; align-items: center; gap: 2px; }
+.op-tambah { font-size: .78rem !important; font-weight: 800; color: var(--brand) !important; white-space: nowrap; }
 .op-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .op-info b { font-size: .92rem; }
 .op-info small { display: block; color: var(--muted); font-size: .78rem; margin-top: 3px; }

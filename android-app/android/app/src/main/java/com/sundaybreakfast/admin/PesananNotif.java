@@ -31,7 +31,7 @@ import java.util.Set;
 public class PesananNotif extends BroadcastReceiver {
     private static final String TAG = "SundayNotif";
     private static final String ADMIN_URL =
-            "https://script.google.com/macros/s/AKfycbw3KAYec7esRiP7_cudEjBCRWd73j3Guvi0jHeuj0VQQJYLpalPc6e8Uoa_LQACC316/exec";
+            "https://script.google.com/macros/s/AKfycbwqZBsA7u2c7oJMCWarZ1Vwf1NiIr8ev_1OXTQQityQP3bdcUYvyB4HyDoOxseEm9pb/exec";
     private static final String PREFS = "sunday_notif";
     private static final String CHANNEL = "pesanan_masuk";
     private static final String KEY_TOKEN = "token";

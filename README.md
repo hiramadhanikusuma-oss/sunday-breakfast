@@ -40,14 +40,14 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbw3KAYec7esRiP7_cudEjBCRWd73j3Guvi0jHeuj0VQQJYLpalPc6e8Uoa_LQACC316/exec
+https://script.google.com/macros/s/AKfycbwqZBsA7u2c7oJMCWarZ1Vwf1NiIr8ev_1OXTQQityQP3bdcUYvyB4HyDoOxseEm9pb/exec
 ```
 
 - Login dengan PIN `800008` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi PIN apa pun bisa diketik di HP.
 - PIN yang aktif terlihat di Spreadsheet → sheet `db` → baris `settings` / `pin_admin` (nilainya `800008`). Login tetap memakai hash PIN; website pelanggan tidak menerima data PIN.
 - Data tersimpan di Spreadsheet "Sunday Breakfast — Database" di akun Google `hi.ramadhanikusuma@gmail.com`. ID spreadsheet disimpan di Script Properties `sunday_sheet_id`.
 - Laporan CSV bisa diekspor dan/atau disimpan otomatis ke Google Drive folder "Sunday Breakfast — Laporan".
-- Website pelanggan memakai form besar: tombol **🍳 Pesan Sekarang** / **Pilih Menu & Pesan**, panel pesanan otomatis terbuka saat menu pertama dipilih. **Nama** dan **No. WhatsApp** wajib; **Alamat** wajib kalau pilih kurir; **Catatan untuk kurir** opsional. Untuk **Ambil sendiri**, jam ambil bisa dipilih (07.00–21.00 atau “kapan saja”). Tombol hijau **📲 KIRIM PESANAN VIA WHATSAPP** selalu membuka WA setelah validasi, dan pesanan juga masuk ke menu **Pesanan Masuk** di admin/APK.
+- Website pelanggan memakai form besar: tombol **🍳 Pesan Sekarang** / **Pilih Menu & Pesan**. Panel **tidak otomatis muncul** saat menu dipilih, jadi pelanggan bebas menambah beberapa item dulu; panel dibuka lewat tombol atas, bilah bawah, atau **＋ Tambah menu lagi** untuk kembali ke daftar menu. **Nama** dan **No. WhatsApp** wajib; **Alamat** wajib kalau pilih kurir; **Catatan untuk kurir** opsional. Untuk **Ambil sendiri**, jam ambil bisa dipilih (07.00–21.00 atau “kapan saja”). Tombol hijau **📲 KIRIM PESANAN VIA WHATSAPP** selalu membuka WA setelah validasi, dan pesanan juga masuk ke menu **Pesanan Masuk** di admin/APK.
 - Ongkos kurir diatur di **Toko & Branding → Ongkos Kurir (Rp)** (bawaan `10000`). Form menampilkan ongkir, WA pelanggan merincikan subtotal + ongkir + total, dan kakak admin bisa mengubah ongkir lalu menekan **💬 Konfirmasi total** untuk mengirim WA berisi "total jadi segini" beserta alamat/jam ambil dan Maps.
 - Di **Pesanan Masuk**, tekan **📦 Ready diambil** / **🚚 Ready dikirim** untuk mengirim WA "pesanan ready kak" ke pelanggan. Status berubah jadi **Siap**; tombol **📣 Ready lagi** mengirim ulang notifikasi dan **↩️ Batal siap** membatalkannya.
 - Tekan **✓ Sudah diambil** / **✓ Sudah sampai** hanya setelah barang diterima. Saat itu struk otomatis dibuat di **History** dengan nomor pesanan yang sama, stok berkurang, dan HPP item (tanpa ongkir) tercatat di **Insight**. Membuka lagi pesanan akan menghapus struk itu dan mengembalikan stok bila belum refund. Ongkos kurir ikut tersimpan di struk sebagai informasi, bukan HPP.
@@ -80,13 +80,13 @@ gradlew.bat assembleDebug
 APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`. Install di HP Android dengan `adb install app-debug.apk` atau copy file lalu buka (izinkan install dari sumber tidak dikenal).
 
 ### Cetak struk ke printer Bluetooth (RPP02N / 58 mm)
-APK sekarang bisa mencari **dan memasangkan** printer seperti aplikasi POS — tidak perlu pairing manual dari Setelan HP.
+APK sekarang memakai alur **satu tombol** seperti aplikasi POS: cari perangkat, pasangkan, buka koneksi SPP, simpan printer, lalu cetak uji. Tidak perlu berpindah ke Setelan Bluetooth HP.
 
 1. Nyalakan printer RPP02N (LED menyala/berkedip sesuai mode pairing).
-2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** (Android 12+) atau **Lokasi** (Android 11 ke bawah) saat diminta. Bila terlewat, masuk **Pengaturan → Printer Bluetooth** dan tekan **1. Izinkan BT**, lalu **Diagnosa BT** sekali lagi.
-3. Tekan **2. Cari Printer Baru**, pilih printer dari daftar (atau isi MAC manual).
-4. Tekan **3. Pasangkan Printer**. Saat popup PIN muncul, masukkan `0000` (atau `1234` jika ditolak). Status pairing muncul di kotak status. **Buka Setelan BT** tetap tersedia sebagai cadangan.
-5. Tekan **Simpan Pengaturan Struk**, lalu **Test Print BT**. Jika gagal, pesan error lengkap tampil di kotak status; aplikasi mencoba 5 metode koneksi (SPP aman, SPP tanpa otorisasi, RFCOMM port 1/2, RFCOMM insecure port 1).
+2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** (Android 12+) atau **Lokasi** (Android 11 ke bawah) saat diminta. Bila terlewat, masuk **Pengaturan → Printer Bluetooth** dan tekan **Izinkan BT**. Error “error invoking” sudah ditangani: tombol ini tidak lagi melempar exception ke WebView.
+3. Tekan **🔍 Cari & Hubungkan Printer**. Daftar perangkat tampil bertahap saat discovery berjalan (seperti aplikasi POS). Bila hanya ada satu printer dan belum ada printer tersimpan, aplikasi langsung menghubungkannya.
+4. Bila ada beberapa perangkat, tekan **Hubungkan** pada printer yang benar. Saat popup PIN muncul, masukkan `0000` (atau `1234` jika ditolak). Aplikasi menunggu pairing maksimal 15 detik, lalu tetap mencoba koneksi SPP langsung. **Setelan BT** tetap tersedia sebagai cadangan.
+5. Setelah tersambung, MAC + nama printer otomatis disimpan dan struk uji langsung dicetak. Jika gagal, pesan error lengkap tampil di kotak status; aplikasi mencoba 5 metode koneksi (SPP aman, SPP tanpa otorisasi, RFCOMM port 1/2, RFCOMM insecure port 1).
 6. Setelah itu, pembayaran otomatis cetak ke printer Bluetooth. Tombol **BT** di History dan **Cetak Bluetooth** di modal struk juga tersedia.
 
 Bridge native `SundayPrinter` hanya diizinkan untuk URL Web App admin dan `localhost:3000/admin`. Fallback tetap memakai dialog print browser bila Bluetooth belum disiapkan.
