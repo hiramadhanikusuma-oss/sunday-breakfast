@@ -279,6 +279,7 @@ public class MainActivity extends BridgeActivity {
         JSONArray hasil = new JSONArray();
         try {
             Set<BluetoothDevice> devices = adapter.getBondedDevices();
+            if (devices == null) return hasil;
             for (BluetoothDevice d : devices) {
                 try {
                     JSONObject o = new JSONObject();
@@ -290,7 +291,14 @@ public class MainActivity extends BridgeActivity {
                 } catch (Exception ignored) {}
             }
         } catch (SecurityException e) {
-            // diabaikan; izin sudah dicek sebelum pemanggilan
+            try {
+                JSONObject o = new JSONObject();
+                o.put("nama", "IZIN DITOLAK: " + e.getMessage());
+                o.put("mac", "");
+                o.put("terpasang", false);
+                o.put("bond", "ERROR");
+                hasil.put(o);
+            } catch (Exception ignored) {}
         }
         return hasil;
     }
@@ -798,13 +806,19 @@ public class MainActivity extends BridgeActivity {
                 o.put("url", web.getUrl() == null ? "" : web.getUrl());
                 o.put("izinBluetooth", izinBluetooth());
                 o.put("izinScan", izinScan());
+                o.put("izinConnectAndroid", Build.VERSION.SDK_INT >= 31
+                        ? checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+                        : true);
+                o.put("izinScanAndroid", Build.VERSION.SDK_INT >= 31
+                        ? checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+                        : checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
                 BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
                 o.put("adapter", adapter != null);
                 o.put("aktif", adapter != null && adapter.isEnabled());
                 o.put("scanAktif", adapter != null && izinScan() && adapter.isDiscovering());
                 JSONArray terpasang = adapter != null && izinBluetooth()
                         ? daftarPerangkat(adapter) : new JSONArray();
-                o.put("bleScanner", adapter != null && izinScan() && adapter.getBluetoothLeScanner() != null);
+                o.put("bleScanner", adapter != null && adapter.getBluetoothLeScanner() != null);
                 o.put("gattInfo", infoGattTerakhir);
                 for (int i = 0; i < daftarBleTerakhir.length(); i++) {
                     JSONObject b = daftarBleTerakhir.getJSONObject(i);
@@ -1035,6 +1049,17 @@ public class MainActivity extends BridgeActivity {
             if (!originDiizinkan()) return;
             try {
                 Intent i = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public void bukaSetelanAplikasi() {
+            if (!originDiizinkan()) return;
+            try {
+                Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                i.setData(android.net.Uri.parse("package:" + getPackageName()));
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(i);
             } catch (Exception ignored) {}

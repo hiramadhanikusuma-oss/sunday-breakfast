@@ -1525,20 +1525,29 @@ if ($('#btnBukaBluetooth')) $('#btnBukaBluetooth').onclick = () => {
   try { bridge.bukaSetelanBluetooth(); toast('Membuka Setelan Bluetooth'); }
   catch (e) { toast(e.message); }
 };
+if ($('#btnBukaSetelanApp')) $('#btnBukaSetelanApp').onclick = () => {
+  const bridge = btBridge();
+  if (!bridge) return toast('Buka halaman ini dari APK Sunday Admin');
+  try { bridge.bukaSetelanAplikasi(); toast('Membuka Setelan Aplikasi'); }
+  catch (e) { toast(e.message); }
+};
 if ($('#btnDiagnosaBT')) $('#btnDiagnosaBT').onclick = () => {
   const bridge = btBridge();
   if (!bridge) return setBtStatus('Bridge Bluetooth tidak tersedia. Buka halaman ini dari APK Sunday Admin.', true);
   try {
     const d = JSON.parse(bridge.diagnosa());
     const perangkat = (d.terpasang || []).map(x => x.nama + ' (' + x.mac + ')').join(', ') || '-';
-    setBtStatus(
+    const msg =
       'Android ' + d.android + ' · WebView: ' + (d.url || '-') + '\n' +
-      'Bluetooth: ' + (d.aktif ? 'aktif' : 'MATI') + ' · Izin BT: ' + (d.izinBluetooth ? 'OK' : 'BELUM') +
-      ' · Izin Scan: ' + (d.izinScan ? 'OK' : 'BELUM') + '\n' +
-      'Pencarian printer: ' + (d.scanAktif ? 'berjalan' : 'tidak berjalan') + '\n' +
-      'Perangkat terpasang: ' + perangkat,
-      !d.aktif || !d.izinBluetooth
-    );
+      'Bluetooth: ' + (d.aktif ? 'aktif' : 'MATI') +
+      ' · CONNECT: ' + (d.izinConnectAndroid ? 'OK' : 'BELUM') +
+      ' · SCAN: ' + (d.izinScanAndroid ? 'OK' : 'BELUM') + '\n' +
+      'Pencarian: ' + (d.scanAktif ? 'berjalan' : 'tidak berjalan') +
+      ' · BLE scanner: ' + (d.bleScanner ? 'OK' : 'tidak ada') + '\n' +
+      'GATT: ' + (d.gattInfo || '-') + '\n' +
+      'Perangkat terpasang/terdeteksi: ' + perangkat;
+    setBtStatus(msg, !d.aktif || !d.izinBluetooth);
+    try { navigator.clipboard.writeText(msg); } catch (e) {}
     toast('Diagnosa Bluetooth ditampilkan');
   } catch (e) { setBtStatus('Gagal diagnosa: ' + (e.message || e), true); }
 };
