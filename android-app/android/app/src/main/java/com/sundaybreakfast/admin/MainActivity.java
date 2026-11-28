@@ -147,10 +147,18 @@ public class MainActivity extends BridgeActivity {
 
     private void kirimKeJS(String callback, JSONObject isi) {
         if (callback == null || callback.isEmpty()) return;
+        final String js = "try{window." + callback + "(" + isi.toString() + ")}catch(e){}";
+        /* Callback Bluetooth/BLE datang dari thread lain; WebView hanya boleh
+           dipanggil dari UI thread. Tanpa ini JS never menerima hasil → timeout. */
         try {
-            getBridge().getWebView().evaluateJavascript(
-                    "try{window." + callback + "(" + isi.toString() + ")}catch(e){}", null);
-        } catch (Exception ignored) {}
+            runOnUiThread(() -> {
+                try { getBridge().getWebView().evaluateJavascript(js, null); }
+                catch (Exception ignored) {}
+            });
+        } catch (Exception ignored) {
+            try { getBridge().getWebView().evaluateJavascript(js, null); }
+            catch (Exception ignored2) {}
+        }
     }
 
     private void kirimScan(String cb, boolean ok, String pesan, JSONArray perangkat, boolean selesai) {
@@ -611,7 +619,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     private String kirimKePrinter(String mac, String teks) {
-        if ("SPP".equals(modePrinterTerakhir)) {
+        boolean terpasang = false;
+        try {
+            BluetoothAdapter a = adapterBluetooth();
+            if (a != null && mac != null) {
+                terpasang = a.getRemoteDevice(mac.trim()).getBondState() == BluetoothDevice.BOND_BONDED;
+            }
+        } catch (Exception ignored) {}
+        if (terpasang || "SPP".equals(modePrinterTerakhir)) {
             JSONObject spp = cobaKoneksi(mac, teks);
             if (spp.optBoolean("ok", false)) return spp.optString("pesan");
             JSONObject ble = kirimBle(mac, teks, 7);
@@ -651,10 +666,14 @@ public class MainActivity extends BridgeActivity {
         }
         final String nama = device.getName() == null ? alamat : device.getName();
         final String uji = "\nSUNDAY BREAKFAST\nTEST KONEKSI\n" + nama + "\n" + alamat + "\n";
+        final boolean sudahTerpasang = device.getBondState() == BluetoothDevice.BOND_BONDED;
 
-        /* Coba BLE dulu: printer dual-mode tidak perlu pairing klasik. */
-        final boolean bleTerlihat = perangkatBleDitemukan(alamat);
-        JSONObject ble = kirimBle(alamat, uji, bleTerlihat ? 8 : 5);
+        /* Printer sudah terpasang di Setelan HP → pakai SPP seperti Loyverse (cepat).
+           Yang belum terpasang dicoba BLE dulu. */
+        final boolean bleTerlihat = perangkatBleDitemukan(alamat) && !sudahTerpasang;
+        JSONObject ble = sudahTerpasang
+                ? hasilHubungkan(false, "", alamat, nama, BluetoothDevice.BOND_BONDED, null)
+                : kirimBle(alamat, uji, bleTerlihat ? 8 : 5);
         if (ble.optBoolean("ok", false)) {
             try {
                 ble.put("pesan", ble.optString("pesan") + " (tanpa pairing klasik)");
@@ -663,7 +682,8 @@ public class MainActivity extends BridgeActivity {
             runOnUiThread(() -> kirimKeJS(cb, ble));
             return;
         }
-        final String catatanBle = " | BLE: " + ble.optString("pesan");
+        final String catatanBle = ble.optString("pesan").isEmpty()
+                ? "" : " | BLE: " + ble.optString("pesan");
 
         final CountDownLatch latch = new CountDownLatch(1);
         final boolean[] bondOk = { device.getBondState() == BluetoothDevice.BOND_BONDED };
@@ -990,14 +1010,19 @@ public class MainActivity extends BridgeActivity {
                     kirimScan(cb, true, "Discovery gagal; memakai hasil BLE/perangkat terpasang ("
                             + e.getClass().getSimpleName() + ")", perangkat, true);
                 }
+                /* Kalau sudah ada perangkat terpasang, kirim hasil cepat supaya
+                   customer/admin tidak menunggu discovery penuh. */
+                final int jeda = perangkat.length() > 0 ? 2500 : 8000;
                 new Handler(getMainLooper()).postDelayed(() -> {
                     if (selesaiDikirim[0]) return;
                     selesaiDikirim[0] = true;
                     try { if (adapter.isDiscovering()) adapter.cancelDiscovery(); }
                     catch (Exception ignored) {}
                     hentikanScan();
-                    kirimScan(cb, true, "OK: pencarian selesai", perangkat, true);
-                }, 12000);
+                    kirimScan(cb, true,
+                            "OK: " + perangkat.length() + " perangkat ditemukan/terpasang",
+                            perangkat, true);
+                }, jeda);
             } catch (Throwable e) {
                 hentikanScan();
                 String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
