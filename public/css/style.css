@@ -335,7 +335,7 @@ textarea.op-input { resize: vertical; min-height: 62px; }
 .op-input:focus { outline: none; border-color: var(--brand); }
 .op-field { display: block; margin-top: 10px; font-size: .68rem; font-weight: 700; color: var(--muted); }
 .op-field:first-child { margin-top: 12px; }
-#opAlamatWrap small { display: block; color: var(--muted); font-size: .66rem; margin-top: 5px; }
+#opAmbilWrap small, #opAlamatWrap small { display: block; color: var(--muted); font-size: .66rem; margin-top: 5px; }
 .ob-wa:disabled { opacity: .65; cursor: wait; }
 .mc-unggulan { position: absolute; left: 10px; bottom: 10px; background: var(--accent); color: var(--ink); font-size: .62rem; font-weight: 800; padding: 5px 9px; border-radius: 999px; letter-spacing: .02em; }
 .map-placeholder { text-decoration: none; cursor: pointer; }

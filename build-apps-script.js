@@ -307,6 +307,7 @@ function terimaPesanan_(b) {
       metode: b.metode === 'kurir' ? 'kurir' : 'ambil',
       alamat: String(b.alamat || '').slice(0, 500),
       catatan: String(b.catatan || '').slice(0, 500),
+      jam_ambil: String(b.jam_ambil || '').slice(0, 20),
       items: items,
       total: Number(b.total) || 0,
       status: 'baru',
@@ -351,6 +352,7 @@ function trxDariPesanan_(d, p) {
     pelanggan: p.nama || '',
     hp: p.hp || '',
     metode_kirim: p.metode || 'ambil',
+    jam_ambil: p.jam_ambil || '',
     alamat: p.alamat || '',
     catatan: p.catatan || '',
     refunded: false
@@ -374,7 +376,7 @@ function hapusTrxDariPesanan_(d, p) {
 }
 function statusPesanan_(b) {
   var id = String(b.id || '');
-  var status = b.status === 'selesai' ? 'selesai' : 'baru';
+  var status = (b.status === 'selesai' || b.status === 'siap') ? b.status : 'baru';
   var lock = LockService.getScriptLock();
   try { lock.waitLock(8000); } catch (e) { return { error: 'Pesanan sedang diproses' }; }
   try {
@@ -385,7 +387,7 @@ function statusPesanan_(b) {
     if (status === 'selesai') {
       var sudah = p.trx_id && (d.transaksi || []).some(function (x) { return x.id === p.trx_id; });
       if (!sudah) { trxDariPesanan_(d, p); pindah = true; }
-    } else {
+    } else if (status === 'baru') {
       hapusTrxDariPesanan_(d, p);
     }
     p.status = status;

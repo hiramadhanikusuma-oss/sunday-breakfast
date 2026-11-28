@@ -7,6 +7,17 @@ function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('buka');
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('buka'), 2400);
 }
+function isiPilihanJam() {
+  const el = $('#opJam');
+  if (!el || el.options.length > 1) return;
+  for (let h = 7; h <= 21; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      if (h === 21 && m > 0) continue;
+      const v = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      el.add(new Option(v, v));
+    }
+  }
+}
 async function load() {
   const sumber = (window.CONFIG && window.CONFIG.dataUrl) || '/api/public';
   try {
@@ -270,7 +281,8 @@ function dataFormPesanan() {
     nama: ($('#opNama').value || '').trim(),
     hp: ($('#opHp').value || '').trim(),
     alamat: ($('#opAlamat').value || '').trim(),
-    catatan: ($('#opCatatan').value || '').trim()
+    catatan: ($('#opCatatan').value || '').trim(),
+    jam_ambil: ($('#opJam').value || '').trim()
   };
 }
 function validasiForm(f) {
@@ -280,7 +292,7 @@ function validasiForm(f) {
   return '';
 }
 function infoKirim(f) {
-  if (f.metode !== 'kurir') return '🏍️ Ambil sendiri di toko';
+  if (f.metode !== 'kurir') return '🏍️ Ambil sendiri di toko\n   🕒 Jam ambil: ' + (f.jam_ambil || 'kapan saja');
   return '🚚 Kurir ke rumah\n   📍 Alamat: ' + f.alamat +
     (f.catatan ? '\n   📝 Catatan: ' + f.catatan : '');
 }
@@ -316,7 +328,7 @@ async function kirimWA() {
     id: 'ps_' + Date.now().toString(36),
     no_pesanan: noPesanan,
     nama: f.nama, hp: f.hp, metode: f.metode,
-    alamat: f.alamat, catatan: f.catatan,
+    alamat: f.alamat, catatan: f.catatan, jam_ambil: f.jam_ambil,
     total: totalRp(), items: items.map(c => ({
       menu_id: c.menu_id, nama: c.nama, harga: c.harga, qty: c.qty, mix: c.mix || ''
     }))
@@ -350,9 +362,14 @@ $('#obInfo').onclick = () => {
   if (buka) renderPanel();
 };
 $('#opTutup').onclick = () => { $('#orderPanel').style.display = 'none'; };
-Array.from(document.querySelectorAll('input[name=kirim]')).forEach(r => r.onchange = () => {
-  $('#opAlamatWrap').style.display = r.checked && r.value === 'kurir' ? 'block' : 'none';
-});
+function updateFormPengiriman() {
+  const r = document.querySelector('input[name=kirim]:checked');
+  const kurir = !!r && r.value === 'kurir';
+  $('#opAlamatWrap').style.display = kurir ? 'block' : 'none';
+  $('#opAmbilWrap').style.display = kurir ? 'none' : 'block';
+}
+Array.from(document.querySelectorAll('input[name=kirim]')).forEach(r => r.onchange = updateFormPengiriman);
+updateFormPengiriman();
 window.addEventListener('scroll', () => {
   document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 20);
 });
@@ -369,4 +386,5 @@ function setupReveal() {
   clearTimeout(revealTimer);
   revealTimer = setTimeout(() => document.querySelectorAll('.reveal').forEach(el => el.classList.add('in')), 1600);
 }
+isiPilihanJam();
 load();

@@ -31,7 +31,7 @@ import java.util.Set;
 public class PesananNotif extends BroadcastReceiver {
     private static final String TAG = "SundayNotif";
     private static final String ADMIN_URL =
-            "https://script.google.com/macros/s/AKfycbz8zEaaXOhpM0UaZ1kQZbNtBOoqvsvHqflYQiptNzdA8MFbZCNmf1ESw_oW11_PvBmQ/exec";
+            "https://script.google.com/macros/s/AKfycbwBObkn5MOOAernCOFiyWnXpMKnRpdz0YfpcdDq4NjRDGA-uoJogihsmOkNEKBKIhxz/exec";
     private static final String PREFS = "sunday_notif";
     private static final String CHANNEL = "pesanan_masuk";
     private static final String KEY_TOKEN = "token";
@@ -175,7 +175,8 @@ public class PesananNotif extends BroadcastReceiver {
             String no = p.optString("no_pesanan", "Pesanan baru");
             String nama = p.optString("nama", "Pelanggan");
             String metode = "kurir".equals(p.optString("metode", "")) ? "Kurir ke rumah" : "Ambil sendiri";
-            String isi = nama + " — " + metode;
+            String jam = p.optString("jam_ambil", "");
+            String isi = nama + " — " + metode + (jam.isEmpty() ? "" : " · jam " + jam);
 
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm == null) return;

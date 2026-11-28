@@ -129,6 +129,7 @@ function trxDariPesanan(d, p) {
     pelanggan: p.nama || '',
     hp: p.hp || '',
     metode_kirim: p.metode || 'ambil',
+    jam_ambil: p.jam_ambil || '',
     alamat: p.alamat || '',
     catatan: p.catatan || '',
     refunded: false
@@ -189,6 +190,7 @@ const server = http.createServer(async (req, res) => {
         metode: b.metode === 'kurir' ? 'kurir' : 'ambil',
         alamat: String(b.alamat || '').slice(0, 500),
         catatan: String(b.catatan || '').slice(0, 500),
+        jam_ambil: String(b.jam_ambil || '').slice(0, 20),
         items, total: Number(b.total) || 0, status: 'baru', sumber: 'website'
       };
       d.pesanan.unshift(pesanan);
@@ -249,14 +251,14 @@ const server = http.createServer(async (req, res) => {
     try {
       const b = await body(req);
       const d = db.get();
-      const status = b.status === 'selesai' ? 'selesai' : 'baru';
+      const status = (b.status === 'selesai' || b.status === 'siap') ? b.status : 'baru';
       const p = (d.pesanan || []).find(x => x.id === String(b.id || ''));
       if (!p) return json(res, { error: 'Pesanan tidak ditemukan' }, 404);
       let masukHistory = false;
       if (status === 'selesai') {
         const sudah = p.trx_id && d.transaksi.some(x => x.id === p.trx_id);
         if (!sudah) { trxDariPesanan(d, p); masukHistory = true; }
-      } else {
+      } else if (status === 'baru') {
         hapusTrxDariPesanan(d, p);
       }
       p.status = status;

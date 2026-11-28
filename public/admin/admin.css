@@ -212,6 +212,7 @@ body.drawer-buka { overflow: hidden; }
 .pesanan-table .pesanan-item small { display: block; color: var(--muted); }
 .pesanan-baru { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #fff3c4; color: #7a5b00; font-size: .64rem; font-weight: 800; }
 .pesanan-selesai { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e3f7e8; color: #17652c; font-size: .64rem; font-weight: 800; }
+.pesanan-siap { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #fff3cd; color: #8a5a00; font-size: .64rem; font-weight: 800; }
 .bt-status { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #eef4ff; color: #1b3f86; font-size: .7rem; line-height: 1.5; word-break: break-word; border: 1px solid #d5e2ff; }
 .bt-status.gagal { background: #fff0f0; color: #9c2020; border-color: #ffd5d5; }
 .bt-status[hidden] { display: none; }

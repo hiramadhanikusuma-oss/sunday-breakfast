@@ -904,6 +904,8 @@ $('#receiptFilter').onchange = renderReceipt;
    PESANAN DARI WEBSITE PELANGGAN
    ========================================================= */
 const KNOWN_KEY = 'sunday_pesanan_dikenal';
+let skipPesananPollingHingga = 0;
+let pesananPollGen = 0;
 function seedPesananAwal() {
   if (localStorage.getItem('sunday_pesanan_seed')) return;
   const dikenal = knownPesanan();
@@ -927,11 +929,13 @@ function simpanTokenNative() {
 function notifikasiPesanan(p) {
   const judul = 'Pesanan baru ' + (p.no_pesanan || '');
   const isi = (p.nama || 'Pelanggan') + ' — ' + rp(p.total || 0) + ' — ' +
-    (p.metode === 'kurir' ? 'Kurir ke rumah' : 'Ambil sendiri');
+    (p.metode === 'kurir' ? 'Kurir ke rumah' : 'Ambil sendiri' + (p.jam_ambil ? ' jam ' + p.jam_ambil : ''));
   if (window.SundayNotify && window.SundayNotify.notifikasi) {
     try { window.SundayNotify.notifikasi(judul, isi); } catch (e) {}
   }
-  if (navigator.vibrate) { try { navigator.vibrate([180, 90, 180]); } catch (e) {} }
+  if (window.top === window.self && navigator.vibrate) {
+    try { navigator.vibrate([180, 90, 180]); } catch (e) {}
+  }
   toast('🔔 ' + judul);
 }
 function updatePesananBadge(items) {
@@ -950,43 +954,55 @@ function renderPesanan() {
   const items = semua.filter(p => {
     if (filter && (p.status || 'baru') !== filter) return false;
     if (!cari) return true;
-    return [p.no_pesanan, p.nama, p.hp, p.alamat].join(' ').toLowerCase().includes(cari);
+    return [p.no_pesanan, p.nama, p.hp, p.alamat, p.jam_ambil].join(' ').toLowerCase().includes(cari);
   });
   const baru = semua.filter(p => p.status !== 'selesai').length;
   $('#pesananStats').innerHTML =
     '<div class="stat-box"><b>' + baru + '</b><span>Belum selesai</span></div>' +
+    '<div class="stat-box"><b>' + semua.filter(p=>p.status==='siap').length + '</b><span>Siap diambil</span></div>' +
     '<div class="stat-box"><b>' + semua.length + '</b><span>Total pesanan</span></div>' +
     '<div class="stat-box"><b>' + rp(semua.reduce((a,p)=>a+Number(p.total||0),0)) + '</b><span>Nilai pesanan</span></div>' +
     '<div class="stat-box"><b>' + semua.filter(p=>p.metode==='kurir').length + '</b><span>Dikirim</span></div>';
   $('#pesananBody').innerHTML = items.length ? items.map(p => {
     const selesai = p.status === 'selesai';
+    const siap = p.status === 'siap';
+    const ambil = p.metode !== 'kurir';
+    const jam = p.jam_ambil ? '<br><small>🕒 Jam ambil: <b>' + esc(p.jam_ambil) + '</b></small>' : '';
     const itemHtml = (p.items || []).map(it =>
       esc(it.nama) + ' ×' + Number(it.qty||1) + (it.mix ? '<small>🧊 ' + esc(it.mix) + '</small>' : '')
     ).join('<br>');
     const hp = String(p.hp || '').replace(/[^0-9]/g, '');
     const wa = hp ? 'https://wa.me/' + (hp.startsWith('0') ? '62' + hp.slice(1) : hp) : '';
     const trxHistory = p.trx_id && (DB.transaksi || []).find(x => x.id === p.trx_id);
+    const statusLabel = selesai ? 'Selesai' : siap ? 'Siap diambil' : 'Baru';
+    const statusKelas = selesai ? 'pesanan-selesai' : siap ? 'pesanan-siap' : 'pesanan-baru';
     return '<tr><td><b>' + esc(p.no_pesanan) + '</b></td>' +
       '<td>' + new Date(p.waktu).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'}) + '</td>' +
       '<td><b>' + esc(p.nama || '-') + '</b><br><small>' + esc(p.hp || '-') + '</small></td>' +
-      '<td>' + (p.metode === 'kurir' ? '🚚 Kurir<br><small>' + esc(p.alamat || '-') + (p.catatan ? '<br>' + esc(p.catatan) : '') + '</small>' : '🏍️ Ambil sendiri') + '</td>' +
+      '<td>' + (p.metode === 'kurir' ? '🚚 Kurir<br><small>' + esc(p.alamat || '-') + (p.catatan ? '<br>' + esc(p.catatan) : '') + '</small>' : '🏍️ Ambil sendiri' + jam) + '</td>' +
       '<td class="pesanan-item">' + itemHtml + '</td>' +
       '<td><b>' + rp(p.total) + '</b></td>' +
-      '<td><span class="' + (selesai ? 'pesanan-selesai' : 'pesanan-baru') + '">' + (selesai ? 'Selesai' : 'Baru') + '</span>' +
+      '<td><span class="' + statusKelas + '">' + statusLabel + '</span>' +
       (trxHistory ? '<br><small>History: <b>' + esc(trxHistory.no_nota) + '</b></small>' : '') + '</td>' +
       '<td><button class="btn btn-ghost btn-sm" data-lihat-ps="' + esc(p.id) + '">Lihat</button> ' +
       (wa ? '<a class="btn btn-ghost btn-sm" href="' + wa + '" target="_blank" rel="noopener">WA</a> ' : '') +
+      (ambil && !selesai ? '<button class="btn btn-accent btn-sm" data-siap-ps="' + esc(p.id) + '">' + (siap ? '📣 Kirim ulang' : '📦 Siap diambil') + '</button> ' : '') +
+      (siap ? '<button class="btn btn-ghost btn-sm" data-status-ps="' + esc(p.id) + '" data-status="baru">↩️ Batal siap</button> ' : '') +
       '<button class="btn btn-sm" data-status-ps="' + esc(p.id) + '" data-status="' + (selesai ? 'baru' : 'selesai') + '">' + (selesai ? 'Buka lagi' : '✓ Selesai') + '</button> ' +
       '<button class="btn btn-danger btn-sm" data-hapus-ps="' + esc(p.id) + '">Hapus</button></td></tr>';
   }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Belum ada pesanan masuk.</td></tr>';
   $$('[data-status-ps]').forEach(b => b.onclick = () => ubahStatusPesanan(b.dataset.statusPs, b.dataset.status));
+  $$('[data-siap-ps]').forEach(b => b.onclick = () => tandaiSiapDiambil(b.dataset.siapPs));
   $$('[data-lihat-ps]').forEach(b => b.onclick = () => lihatPesanan(b.dataset.lihatPs));
   $$('[data-hapus-ps]').forEach(b => b.onclick = () => hapusPesananAdmin(b.dataset.hapusPs));
 }
 async function cekPesananBaru(awal) {
   if (!DB || !$('#appView') || $('#appView').style.display === 'none') return;
+  if (!awal && Date.now() < skipPesananPollingHingga) return;
+  const gen = pesananPollGen;
   try {
     const r = await post('/api/admin/pesanan', {});
+    if (gen !== pesananPollGen) return;
     const items = Array.isArray(r.pesanan) ? r.pesanan : [];
     DB.pesanan = items;
     renderPesanan();
@@ -1000,15 +1016,54 @@ async function cekPesananBaru(awal) {
     }
   } catch (e) { /* polling diam-diam, tidak mengganggu kasir */ }
 }
+function bukaWaSiapDiambil(p) {
+  const hp = String(p.hp || '').replace(/[^0-9]/g, '');
+  if (!hp) return false;
+  const tujuan = hp.startsWith('0') ? '62' + hp.slice(1) : hp;
+  const s = DB.settings || {};
+  const jam = p.jam_ambil ? '\n🕒 Jam ambil: ' + p.jam_ambil : '';
+  const teks =
+    'Halo ' + (p.nama || 'kak') + '! 👋\n' +
+    'Pesanan *' + p.no_pesanan + '* sudah *siap diambil* di ' + (s.nama_toko || 'SUNDAY BREAKFAST') + '. 🙌\n' +
+    '💰 Total: ' + rp(p.total) + jam + '\n' +
+    '📍 ' + (s.alamat || '') + (s.maps_url ? '\n' + s.maps_url : '') + '\n' +
+    'Sampai jumpa ya! 😊';
+  window.open('https://wa.me/' + tujuan + '?text=' + encodeURIComponent(teks), '_blank');
+  return true;
+}
+async function tandaiSiapDiambil(id) {
+  const p = (DB.pesanan || []).find(x => x.id === id);
+  if (!p) return;
+  if (!bukaWaSiapDiambil(p)) return toast('No HP pelanggan belum ada, isi dulu ya');
+  const lama = p.status;
+  p.status = 'siap';
+  if ($('#pesananBody')) renderPesanan();
+  toast('✓ WA terkirim, pesanan siap diambil');
+  skipPesananPollingHingga = Date.now() + 12000;
+  pesananPollGen++;
+  try {
+    await post('/api/admin/pesanan/status', { id, status: 'siap' });
+    DB = await api('/api/admin/data');
+    renderAll();
+  } catch (e) { p.status = lama; renderPesanan(); toast(e.message); }
+}
 async function ubahStatusPesanan(id, status) {
+  const p = (DB.pesanan || []).find(x => x.id === id);
+  const dari = p ? p.status : '';
+  if (p) { p.status = status; if ($('#pesananBody')) renderPesanan(); }
+  toast(status === 'selesai' ? '✓ Memproses pesanan selesai...' : '✓ Membuka pesanan...');
+  skipPesananPollingHingga = Date.now() + 12000;
+  pesananPollGen++;
   try {
     const r = await post('/api/admin/pesanan/status', { id, status });
     DB = await api('/api/admin/data');
     renderAll();
     toast(status === 'selesai'
       ? (r.masuk_history ? '✓ Pesanan selesai & masuk History' : '✓ Pesanan selesai')
-      : 'Pesanan dibuka lagi, struk dihapus dari History');
-  } catch (e) { toast(e.message); }
+      : status === 'siap' ? '✓ Pesanan siap diambil'
+      : dari === 'selesai' ? 'Pesanan dibuka lagi, struk dihapus dari History'
+      : 'Pesanan dibuka lagi');
+  } catch (e) { if (p) p.status = dari; renderPesanan(); toast(e.message); }
 }
 async function hapusPesananAdmin(id) {
   if (!confirm('Hapus pesanan ini dari daftar?')) return;
@@ -1027,7 +1082,7 @@ function lihatPesanan(id) {
     '<div class="table-scroll"><table class="menu-table resep-table"><thead><tr><th>Item</th><th>Qty</th><th>Harga</th></tr></thead><tbody>' +
     (p.items || []).map(it => '<tr><td>' + esc(it.nama) + (it.mix ? '<br><small>🧊 ' + esc(it.mix) + '</small>' : '') + '</td><td>' + Number(it.qty||1) + '</td><td>' + rp(it.harga) + '</td></tr>').join('') +
     '</tbody></table></div>' +
-    '<div class="resep-total">' + (p.metode === 'kurir' ? '🚚 Alamat: ' + esc(p.alamat || '-') + (p.catatan ? '<br>📝 ' + esc(p.catatan) : '') : '🏍️ Ambil sendiri') + '<br>Total: <b>' + rp(p.total) + '</b></div>' +
+    '<div class="resep-total">' + (p.metode === 'kurir' ? '🚚 Alamat: ' + esc(p.alamat || '-') + (p.catatan ? '<br>📝 ' + esc(p.catatan) : '') : '🏍️ Ambil sendiri' + (p.jam_ambil ? '<br>🕒 Jam ambil: <b>' + esc(p.jam_ambil) + '</b>' : '')) + '<br>Total: <b>' + rp(p.total) + '</b></div>' +
     '<div class="modal-foot"><button class="btn btn-dark" id="psTutup">Tutup</button></div></div>';
   document.body.appendChild(bg);
   $('#psTutup').onclick = () => bg.remove();
