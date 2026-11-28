@@ -1131,13 +1131,26 @@ public class MainActivity extends BridgeActivity {
 
         /* Async supaya WebView tidak macet saat socket connect. */
         private String kirimBytesKePrinter(String mac, byte[] data) {
-            JSONObject ble = kirimBleBytes(mac, data, 16);
-            if (ble.optBoolean("ok", false)) return ble.optString("pesan");
-            JSONObject spp = cobaKoneksiBytes(mac, data);
-            if (spp.optBoolean("ok", false)) {
-                modePrinterTerakhir = "SPP";
-                return spp.optString("pesan");
+            /* Jangan selalu coba BLE dulu: printer yang sudah terpasang (SPP)
+               akan menunggu 16 detik sia-sia tiap cetak. Pilih jalur cepat. */
+            boolean terpasang = false;
+            try {
+                BluetoothAdapter a = adapterBluetooth();
+                if (a != null && mac != null) {
+                    terpasang = a.getRemoteDevice(mac.trim()).getBondState() == BluetoothDevice.BOND_BONDED;
+                }
+            } catch (Exception ignored) {}
+            if (terpasang || "SPP".equals(modePrinterTerakhir)) {
+                JSONObject spp = cobaKoneksiBytes(mac, data);
+                if (spp.optBoolean("ok", false)) { modePrinterTerakhir = "SPP"; return spp.optString("pesan"); }
+                JSONObject ble = kirimBleBytes(mac, data, 12);
+                if (ble.optBoolean("ok", false)) { modePrinterTerakhir = "BLE"; return ble.optString("pesan"); }
+                return spp.optString("pesan") + " | BLE: " + ble.optString("pesan");
             }
+            JSONObject ble = kirimBleBytes(mac, data, 12);
+            if (ble.optBoolean("ok", false)) { modePrinterTerakhir = "BLE"; return ble.optString("pesan"); }
+            JSONObject spp = cobaKoneksiBytes(mac, data);
+            if (spp.optBoolean("ok", false)) { modePrinterTerakhir = "SPP"; return spp.optString("pesan"); }
             return spp.optString("pesan") + " | BLE: " + ble.optString("pesan");
         }
 

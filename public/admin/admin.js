@@ -109,6 +109,8 @@ async function masuk() {
   $('#appView').style.display = 'block';
   seedPesananAwal();
   renderAll();
+  /* Panaskan logo struk supaya cetak pertama tidak menunggu unduh gambar. */
+  try { muatGambarStruk((DB.settings.printer || {}).logo || '/assets/logo-icon.png'); } catch (e) {}
   bukaView('kasir');
   if (localStorage.getItem('sunday_pesanan_seed')) setTimeout(() => cekPesananBaru(false), 1200);
 }
@@ -574,22 +576,33 @@ $('#kasirKat').addEventListener('change', renderKasir);
 $('#cartClear').onclick = () => { cart = []; $('#bayarInput').value=''; renderCart(); };
 $('#btnBayar').onclick = async () => {
   if (!cart.length) return toast('Keranjang masih kosong');
+  const btn = $('#btnBayar');
+  if (btn && btn.disabled) return;
   const total = cart.reduce((a,c) => a + c.harga*c.qty, 0);
   const bayar = Number($('#bayarInput').value) || 0;
   if (bayar < total) return toast('Uang bayar kurang');
+  if (btn) { btn.disabled = true; btn.dataset.asli = btn.textContent; btn.textContent = 'Menyimpan...'; }
+  const isiCart = cart.slice();
   try {
     const r = await post('/api/admin/transaksi', {
-      items: cart.map(c => ({ menu_id:c.menu_id, nama:c.nama, mix:c.mix || '', pilihan:c.pilihan || null, harga:c.harga, qty:c.qty, hpp:c.hpp })),
-      total, hpp: cart.reduce((a,c)=>a+c.hpp*c.qty,0), bayar, kembalian: bayar-total,
+      items: isiCart.map(c => ({ menu_id:c.menu_id, nama:c.nama, mix:c.mix || '', pilihan:c.pilihan || null, harga:c.harga, qty:c.qty, hpp:c.hpp })),
+      total, hpp: isiCart.reduce((a,c)=>a+c.hpp*c.qty,0), bayar, kembalian: bayar-total,
       metode: $('#metodeBayar').value, kasir: 'Admin'
     });
     const trx = r.transaksi;
-    await cetakStruk(trx, true);
+    /* UI langsung bersih & sukses — tidak menunggu cetak atau refresh data. */
     cart = []; $('#bayarInput').value = '';
-    DB = await api('/api/admin/data');
-    renderAll();
+    renderCart();
+    hitungKembalian();
     toast('✓ ' + trx.no_nota + ' berhasil');
+    /* Cetak di belakang layar. */
+    try { cetakStruk(trx, true); } catch (e) {}
+    /* Refresh data di latar belakang, tanpa menahan kasir. */
+    api('/api/admin/data').then(d => { DB = d; renderAll(); }).catch(() => {});
   } catch (e) { toast(e.message); }
+  finally {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.asli || 'Bayar'; }
+  }
 };
 /* =========================================================
    BAHAN & HPP
@@ -1414,15 +1427,24 @@ function bytesToBase64(bytes) {
   return btoa(bin);
 }
 
+const _cacheGambarStruk = new Map();
 function muatGambarStruk(src) {
+  if (!src) return Promise.resolve(null);
+  if (_cacheGambarStruk.has(src)) return Promise.resolve(_cacheGambarStruk.get(src));
   return new Promise(resolve => {
-    if (!src) return resolve(null);
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    let selesai = false;
+    const beres = v => {
+      if (selesai) return;
+      selesai = true;
+      if (v) _cacheGambarStruk.set(src, v);
+      resolve(v);
+    };
+    img.onload = () => beres(img);
+    img.onerror = () => beres(null);
     img.src = src;
-    setTimeout(() => resolve(null), 3500);
+    setTimeout(() => beres(null), 2500);
   });
 }
 

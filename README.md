@@ -40,7 +40,7 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbyTqbu68fjB7ejvQDHlz8dyohBTMa4cNe-iplWLrxfhSgIU9wWSrTVwafiSyJc0uJR9/exec
+https://script.google.com/macros/s/AKfycbxvAyP_lOttzZ88Pefu3jTOxkmcdjmKew1YQUnDWP4Ae7TbpTviRV7pxgj4vkgOwag/exec
 ```
 
 - Login dengan PIN `800008` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi PIN apa pun bisa diketik di HP.
