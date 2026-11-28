@@ -587,11 +587,13 @@ $('#btnBayar').onclick = async () => {
     const r = await post('/api/admin/transaksi', {
       items: isiCart.map(c => ({ menu_id:c.menu_id, nama:c.nama, mix:c.mix || '', pilihan:c.pilihan || null, harga:c.harga, qty:c.qty, hpp:c.hpp })),
       total, hpp: isiCart.reduce((a,c)=>a+c.hpp*c.qty,0), bayar, kembalian: bayar-total,
-      metode: $('#metodeBayar').value, kasir: 'Admin'
+      metode: $('#metodeBayar').value, kasir: 'Admin',
+      pelanggan: ($('#bayarNama') && $('#bayarNama').value || '').trim()
     });
     const trx = r.transaksi;
     /* UI langsung bersih & sukses — tidak menunggu cetak atau refresh data. */
     cart = []; $('#bayarInput').value = '';
+    if ($('#bayarNama')) $('#bayarNama').value = '';
     renderCart();
     hitungKembalian();
     toast('✓ ' + trx.no_nota + ' berhasil');
@@ -1745,6 +1747,10 @@ function strukLines(trx) {
   L.push('No : '+(trx.no_nota||'-'));
   L.push('Tgl: '+new Date(trx.waktu).toLocaleString('id-ID'));
   L.push('Kasir: '+(trx.kasir||'Admin'));
+  if (trx.pelanggan) {
+    const nm = String(trx.pelanggan);
+    for (let i=0;i<nm.length;i+=w-6) L.push('Nama: '+nm.slice(i,i+w-6));
+  }
   garis('-');
   for (const it of trx.items) {
     L.push(String(it.nama).slice(0,w-7)+'  '+it.qty+'x');
@@ -1776,6 +1782,7 @@ function receiptHtml(trx) {
     '<div class="receipt-row"><span>No</span><span>'+esc(trx.no_nota||'-')+'</span></div>' +
     '<div class="receipt-row"><span>Tgl</span><span>'+new Date(trx.waktu).toLocaleString('id-ID')+'</span></div>' +
     '<div class="receipt-row"><span>Kasir</span><span>'+esc(trx.kasir||'Admin')+'</span></div>' +
+    (trx.pelanggan ? '<div class="receipt-row"><span>Pelanggan</span><span>'+esc(trx.pelanggan)+'</span></div>' : '') +
     '<div class="receipt-row"><span>Metode</span><span>'+esc(trx.metode||'Cash')+'</span></div>' +
     '<div class="receipt-line"></div>' +
     trx.items.map(it => '<div class="receipt-item"><div class="receipt-row"><span>'+esc(it.nama)+' ×'+it.qty+'</span><span>'+rp(it.harga*it.qty)+'</span></div>' +

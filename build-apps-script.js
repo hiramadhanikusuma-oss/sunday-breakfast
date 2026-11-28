@@ -504,6 +504,7 @@ function transaksi_(b) {
     kembalian: Number(b.kembalian) || 0,
     metode: b.metode || 'Cash',
     kasir: b.kasir || 'Admin',
+    pelanggan: String(b.pelanggan || '').slice(0, 120),
     refunded: false
   };
   d.transaksi.unshift(trx);
