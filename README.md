@@ -40,7 +40,7 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbzM7iuh0iuPfBrJo1mXviusrUt4UzXfFDDbCVNBKok6yf-P0tT7qprd_Wcau8_Jbyvk/exec
+https://script.google.com/macros/s/AKfycbyrdWNFEiU5OyBv98y8aRAHUH684jkbuvWhetX4Bm3nSWEm4NGA1l_m2PlEwvHRni2D/exec
 ```
 
 - Login dengan PIN `800008` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi PIN apa pun bisa diketik di HP.
@@ -78,10 +78,11 @@ APK debug ada di `android-app/android/app/build/outputs/apk/debug/app-debug.apk`
 
 ### Cetak struk ke printer Bluetooth (RPP02N / 58 mm)
 1. Nyalakan Bluetooth dan pair printer di **Setelan Bluetooth HP** (PIN bawaan RPP02N biasanya `0000`).
-2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** (Android 12+) atau **Lokasi** (Android 11 ke bawah) saat diminta.
-3. Masuk **Pengaturan → Printer Bluetooth**. Tekan **Cari Printer Baru** untuk memindai perangkat, atau **Buka Setelan BT** jika printer belum terpasang. Pilih printer (atau isi MAC manual), lalu **Simpan Pengaturan Struk**.
-4. Tekan **Test Print BT** untuk memastikan struk keluar.
-5. Setelah itu, pembayaran akan otomatis cetak ke printer Bluetooth. Tombol **BT** di Receipt dan **Cetak Bluetooth** di modal struk juga tersedia.
+2. Buka APK Sunday Admin, izinkan **Nearby devices / Bluetooth** (Android 12+) atau **Lokasi** (Android 11 ke bawah) saat diminta. Bila terlewat, masuk **Pengaturan → Printer Bluetooth** dan tekan **Izinkan BT**.
+3. Masuk **Pengaturan → Printer Bluetooth**. Tekan **Diagnosa BT** untuk melihat status izin, Bluetooth, dan daftar printer yang sudah terpasang. Bila hanya ada satu printer, MAC-nya otomatis dipilih.
+4. Tekan **Cari Printer Baru** untuk memindai perangkat, atau **Buka Setelan BT** jika printer belum terpasang. Pilih printer (atau isi MAC manual), lalu **Simpan Pengaturan Struk**.
+5. Tekan **Test Print BT** untuk memastikan struk keluar. Jika gagal, pesan error lengkap tampil di kotak status dan aplikasi akan mencoba 4 metode koneksi (SPP aman, SPP tanpa otorisasi, RFCOMM port 1/2).
+6. Setelah itu, pembayaran akan otomatis cetak ke printer Bluetooth. Tombol **BT** di History dan **Cetak Bluetooth** di modal struk juga tersedia.
 
 Bridge native `SundayPrinter` hanya diizinkan untuk URL Web App admin dan `localhost:3000/admin`. Fallback tetap memakai dialog print browser bila Bluetooth belum disiapkan.
 

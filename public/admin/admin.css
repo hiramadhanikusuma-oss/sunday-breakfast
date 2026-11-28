@@ -55,12 +55,20 @@ img { display: block; max-width: 100%; }
 
 /* ---------- APP SHELL ---------- */
 #appView { display: none; min-height: 100vh; }
-.sidebar { position: fixed; inset: 0 auto 0 0; width: 248px; background: var(--ink); color: #fff; padding: 26px 18px; display: flex; flex-direction: column; z-index: 20; }
+.sidebar {
+  position: fixed; inset: 0 auto 0 0; width: 248px; background: var(--ink); color: #fff;
+  padding: 26px 18px; display: flex; flex-direction: column; z-index: 20;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.28) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.28); border-radius: 999px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
 .sb-brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 26px; }
 .sb-brand img { width: 42px; height: 42px; border-radius: 11px; }
 .sb-brand b { font-size: .95rem; letter-spacing: -.03em; display: block; }
 .sb-brand small { color: var(--accent); font-size: .6rem; letter-spacing: .18em; text-transform: uppercase; }
-.sb-nav { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.sb-nav { position: relative; display: flex; flex: 0 0 auto; flex-direction: column; gap: 4px; }
 .nav-indicator {
   position: absolute; left: -18px; top: 0; width: 3px; height: 0;
   border-radius: 0 4px 4px 0; opacity: 0; pointer-events: none;
@@ -204,6 +212,9 @@ body.drawer-buka { overflow: hidden; }
 .pesanan-table .pesanan-item small { display: block; color: var(--muted); }
 .pesanan-baru { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #fff3c4; color: #7a5b00; font-size: .64rem; font-weight: 800; }
 .pesanan-selesai { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e3f7e8; color: #17652c; font-size: .64rem; font-weight: 800; }
+.bt-status { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #eef4ff; color: #1b3f86; font-size: .7rem; line-height: 1.5; word-break: break-word; border: 1px solid #d5e2ff; }
+.bt-status.gagal { background: #fff0f0; color: #9c2020; border-color: #ffd5d5; }
+.bt-status[hidden] { display: none; }
 .unggulan-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; }
 .unggulan-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--paper); text-align: center; }
 .unggulan-card img, .unggulan-card .ph { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; background: var(--paper-2); display: grid; place-items: center; font-size: 2rem; }
@@ -336,7 +347,8 @@ body.drawer-buka { overflow: hidden; }
   body.drawer-buka .sidebar { transform: translateX(0); }
   .sb-brand { padding: 0 0 22px; }
   .sb-brand > div, .sb-nav button span:last-child, .sb-foot { display: block; }
-  .sb-nav button { justify-content: flex-start; padding: 13px 14px; }
+  .sb-nav { gap: 3px; padding-bottom: 8px; }
+  .sb-nav button { justify-content: flex-start; padding: 11px 12px; }
   .drawer-toggle, .drawer-close { display: inline-flex; }
   .drawer-close { margin-left: auto; width: 40px; height: 40px; flex-basis: 40px; background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); color: #fff; }
   .main { margin-left: 0; }

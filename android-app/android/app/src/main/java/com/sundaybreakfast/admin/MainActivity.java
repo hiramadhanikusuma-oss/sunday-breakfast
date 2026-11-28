@@ -21,6 +21,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -67,13 +68,15 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void mintaIzinBluetoothJikaPerlu() {
-        List<String> belum = new ArrayList<>();
-        for (String izin : daftarIzinBluetooth()) {
-            if (checkSelfPermission(izin) != PackageManager.PERMISSION_GRANTED) belum.add(izin);
-        }
-        if (!belum.isEmpty()) {
-            requestPermissions(belum.toArray(new String[0]), REQ_BT);
-        }
+        runOnUiThread(() -> {
+            List<String> belum = new ArrayList<>();
+            for (String izin : daftarIzinBluetooth()) {
+                if (checkSelfPermission(izin) != PackageManager.PERMISSION_GRANTED) belum.add(izin);
+            }
+            if (!belum.isEmpty()) {
+                requestPermissions(belum.toArray(new String[0]), REQ_BT);
+            }
+        });
     }
 
     /* Bridge hanya dipakai oleh halaman admin yang kita kontrol. */
@@ -141,31 +144,54 @@ public class MainActivity extends BridgeActivity {
     }
 
     private String kirimKePrinter(String mac, String teks) {
-        BluetoothSocket socket = null;
-        OutputStream out = null;
-        try {
-            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-            if (adapter == null) return "ERROR: Bluetooth tidak tersedia";
-            if (!adapter.isEnabled()) return "ERROR: Bluetooth masih mati";
-            if (adapter.isDiscovering()) adapter.cancelDiscovery();
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter == null) return "ERROR: Bluetooth tidak tersedia di HP ini";
+        if (!adapter.isEnabled()) return "ERROR: Bluetooth masih mati. Nyalakan dulu ya";
 
-            BluetoothDevice device = adapter.getRemoteDevice(mac.trim());
-            socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
-            socket.connect();
-            out = socket.getOutputStream();
-            out.write(new byte[]{0x1B, 0x40}); // reset printer
-            out.write((teks == null ? "" : teks).getBytes("UTF-8"));
-            out.write(new byte[]{0x0A, 0x0A, 0x0A});
-            out.flush();
-            return "OK: struk terkirim";
-        } catch (SecurityException e) {
-            return "ERROR: izin Bluetooth belum diberikan";
+        BluetoothDevice device;
+        try {
+            device = adapter.getRemoteDevice(mac.trim());
         } catch (Exception e) {
-            return "ERROR: " + e.getMessage();
-        } finally {
-            try { if (out != null) out.close(); } catch (Exception ignored) {}
-            try { if (socket != null) socket.close(); } catch (Exception ignored) {}
+            return "ERROR: MAC printer tidak valid (" + mac + ")";
         }
+
+        StringBuilder riwayat = new StringBuilder();
+        String[] metode = {"SPP aman", "SPP tanpa otorisasi", "RFCOMM port 1", "RFCOMM port 2"};
+        for (int percobaan = 0; percobaan < metode.length; percobaan++) {
+            BluetoothSocket socket = null;
+            OutputStream out = null;
+            try {
+                if (adapter.isDiscovering()) adapter.cancelDiscovery();
+                switch (percobaan) {
+                    case 0:
+                        socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
+                        break;
+                    case 1:
+                        socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
+                        break;
+                    default:
+                        Method m = device.getClass().getMethod("createRfcommSocket", int.class);
+                        socket = (BluetoothSocket) m.invoke(device, percobaan == 2 ? 1 : 2);
+                        break;
+                }
+                socket.connect();
+                out = socket.getOutputStream();
+                out.write(new byte[]{0x1B, 0x40}); // reset printer
+                out.write((teks == null ? "" : teks).getBytes("UTF-8"));
+                out.write(new byte[]{0x0A, 0x0A, 0x0A});
+                out.flush();
+                return "OK: struk terkirim via " + metode[percobaan];
+            } catch (SecurityException e) {
+                return "ERROR: izin Bluetooth belum diberikan. Buka APK, izinkan Nearby devices/Lokasi";
+            } catch (Exception e) {
+                String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                riwayat.append(metode[percobaan]).append(": ").append(pesan).append(" | ");
+            } finally {
+                try { if (out != null) out.close(); } catch (Exception ignored) {}
+                try { if (socket != null) socket.close(); } catch (Exception ignored) {}
+            }
+        }
+        return "ERROR: gagal konek ke printer. " + riwayat.toString();
     }
 
     public class NotifBridge {
@@ -211,6 +237,30 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean isAvailable() {
             return true;
+        }
+
+        @JavascriptInterface
+        public String diagnosa() {
+            JSONObject o = new JSONObject();
+            if (!originDiizinkan()) {
+                try { o.put("error", "halaman tidak diizinkan"); } catch (Exception ignored) {}
+                return o.toString();
+            }
+            try {
+                WebView web = getBridge().getWebView();
+                o.put("android", Build.VERSION.SDK_INT);
+                o.put("url", web.getUrl() == null ? "" : web.getUrl());
+                o.put("izinBluetooth", izinBluetooth());
+                o.put("izinScan", izinScan());
+                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                o.put("adapter", adapter != null);
+                o.put("aktif", adapter != null && adapter.isEnabled());
+                o.put("terpasang", adapter != null && izinBluetooth()
+                        ? daftarPerangkat(adapter) : new JSONArray());
+            } catch (Exception e) {
+                try { o.put("error", e.getMessage()); } catch (Exception ignored) {}
+            }
+            return o.toString();
         }
 
         @JavascriptInterface

@@ -1177,12 +1177,20 @@ function macPrinter() {
   return manual || pilih || tersimpan;
 }
 function bluetoothSiap() { return !!btBridge() && !!macPrinter(); }
+function setBtStatus(pesan, gagal) {
+  const el = $('#btStatus');
+  if (!el) return;
+  el.hidden = false;
+  el.className = 'bt-status' + (gagal ? ' gagal' : '');
+  el.textContent = pesan;
+}
 function kirimBluetooth(teks) {
   return new Promise((resolve, reject) => {
     const bridge = btBridge();
     if (!bridge) return reject(new Error('Cetak Bluetooth hanya tersedia di APK Sunday Admin'));
     const mac = macPrinter();
     if (!mac) return reject(new Error('Pilih printer Bluetooth di Pengaturan dulu'));
+    try { if (bridge.mintaIzinBluetooth) bridge.mintaIzinBluetooth(); } catch (e) {}
     const cb = 'sundayBtCb' + Math.random().toString(36).slice(2);
     const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons')); }, 15000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
@@ -1193,8 +1201,8 @@ function kirimBluetooth(teks) {
 }
 function cetakBluetooth(trx) {
   kirimBluetooth(strukLines(trx).join('\n') + '\n')
-    .then(r => toast(r.ok ? '✓ ' + r.pesan : r.pesan))
-    .catch(e => toast(e.message));
+    .then(r => { setBtStatus(r.pesan, !r.ok); toast(r.ok ? '✓ ' + r.pesan : r.pesan); })
+    .catch(e => { setBtStatus(e.message || String(e), true); toast(e.message); });
 }
 let daftarPrinterBT = [];
 function isiSelectPrinter(daftar) {
@@ -1238,18 +1246,28 @@ function renderPrinter() {
       daftar = Array.isArray(o) ? o : (o.perangkat || []);
     } catch (e) { pesan = String(raw); }
     isiSelectPrinter(daftar);
+    if (!macPrinter() && daftar.length === 1 && daftar[0] && daftar[0].mac) {
+      $('#printerMac').value = daftar[0].mac;
+      $('#printerMacManual').value = daftar[0].mac;
+    }
     $('#printerMac').disabled = false;
     $('#btnCariPrinter').disabled = false;
+    $('#btnIzinBT').disabled = false;
     $('#btnBukaBluetooth').disabled = false;
+    $('#btnDiagnosaBT').disabled = false;
     $('#btnTestBluetooth').disabled = false;
     hint.textContent = pesan && pesan.indexOf('ERROR') === 0
-      ? pesan + '. Nyalakan Bluetooth, izinkan Nearby Devices/lokasi, lalu tekan “Buka Setelan BT”.'
-      : (daftar.length ? 'Pilih printer di atas, lalu Simpan Pengaturan Struk.' : 'Belum ada printer terpasang. Tekan “Cari Printer Baru” atau “Buka Setelan BT”.');
+      ? pesan + '. Tekan “Izinkan BT”, nyalakan Bluetooth, lalu “Buka Setelan BT”.'
+      : (daftar.length
+        ? (macPrinter() ? 'Printer terpasang sudah dipilih. Tekan “Simpan Pengaturan Struk”, lalu “Test Print BT”.' : 'Pilih printer di atas, lalu Simpan Pengaturan Struk.')
+        : 'Belum ada printer terpasang. Tekan “Izinkan BT”, lalu “Cari Printer Baru” atau “Buka Setelan BT”.');
   } else {
     isiSelectPrinter([]);
     $('#printerMac').disabled = true;
     $('#btnCariPrinter').disabled = true;
+    $('#btnIzinBT').disabled = true;
     $('#btnBukaBluetooth').disabled = true;
+    $('#btnDiagnosaBT').disabled = true;
     $('#btnTestBluetooth').disabled = true;
     hint.textContent = 'Fitur cari & cetak Bluetooth aktif di APK Android Sunday Admin.';
   }
@@ -1269,11 +1287,37 @@ if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = async () => {
     toast(n ? '✓ '+n+' perangkat ditemukan' : 'Perangkat baru tidak ditemukan');
   } catch (e) { toast(e.message); }
 };
+if ($('#btnIzinBT')) $('#btnIzinBT').onclick = () => {
+  const bridge = btBridge();
+  if (!bridge) return setBtStatus('Izinkan Bluetooth hanya tersedia di APK Sunday Admin.', true);
+  try {
+    const r = bridge.mintaIzinBluetooth ? bridge.mintaIzinBluetooth() : 'OK: izin Bluetooth sudah diberikan';
+    setBtStatus(r, String(r).indexOf('ERROR') === 0);
+    toast(r);
+    renderPrinter();
+  } catch (e) { setBtStatus('Gagal minta izin Bluetooth: ' + (e.message || e), true); }
+};
 if ($('#btnBukaBluetooth')) $('#btnBukaBluetooth').onclick = () => {
   const bridge = btBridge();
   if (!bridge) return toast('Buka halaman ini dari APK Sunday Admin');
   try { bridge.bukaSetelanBluetooth(); toast('Membuka Setelan Bluetooth'); }
   catch (e) { toast(e.message); }
+};
+if ($('#btnDiagnosaBT')) $('#btnDiagnosaBT').onclick = () => {
+  const bridge = btBridge();
+  if (!bridge) return setBtStatus('Bridge Bluetooth tidak tersedia. Buka halaman ini dari APK Sunday Admin.', true);
+  try {
+    const d = JSON.parse(bridge.diagnosa());
+    const perangkat = (d.terpasang || []).map(x => x.nama + ' (' + x.mac + ')').join(', ') || '-';
+    setBtStatus(
+      'Android ' + d.android + ' · WebView: ' + (d.url || '-') + '\n' +
+      'Bluetooth: ' + (d.aktif ? 'aktif' : 'MATI') + ' · Izin BT: ' + (d.izinBluetooth ? 'OK' : 'BELUM') +
+      ' · Izin Scan: ' + (d.izinScan ? 'OK' : 'BELUM') + '\n' +
+      'Perangkat terpasang: ' + perangkat,
+      !d.aktif || !d.izinBluetooth
+    );
+    toast('Diagnosa Bluetooth ditampilkan');
+  } catch (e) { setBtStatus('Gagal diagnosa: ' + (e.message || e), true); }
 };
 if ($('#btnTestBluetooth')) $('#btnTestBluetooth').onclick = () => {
   cetakBluetooth({ no_nota:'TEST-BT', waktu:new Date().toISOString(), kasir:'Admin',
