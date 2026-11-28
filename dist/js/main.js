@@ -162,6 +162,7 @@ function setQty(menuId, mix, qty) {
   else lines.push({ menu_id: menuId, qty, mix: mix || undefined });
   renderMenu($('#katNav .aktif') && !$('#katNav .aktif').textContent.includes('Semua') ? kategoriAktif() : '');
   renderBar();
+  if (qty > 0 && $('#orderPanel').style.display === 'none') bukaFormPesanan();
 }
 function kategoriAktif() {
   const a = $('#katNav .aktif');
@@ -241,18 +242,26 @@ function lineItems() {
 }
 function totalQty() { return lines.reduce((a, l) => a + l.qty, 0); }
 function totalRp() { return lineItems().reduce((a, c) => a + c.harga * c.qty, 0); }
+function ongkosKurir() { return Math.max(0, Number((DATA && DATA.settings && DATA.settings.ongkos_kurir) || 0)); }
+function metodeKirim() {
+  const r = document.querySelector('input[name=kirim]:checked');
+  return r && r.value === 'kurir' ? 'kurir' : 'ambil';
+}
+function grandTotal() { return totalRp() + (metodeKirim() === 'kurir' ? ongkosKurir() : 0); }
 function renderBar() {
   const n = totalQty();
   const bar = $('#orderBar');
   bar.style.display = n > 0 ? 'flex' : 'none';
   $('#obCount').textContent = n;
-  $('#obTotal').textContent = rp(totalRp());
+  $('#obTotal').textContent = rp(grandTotal()) + (metodeKirim() === 'kurir' ? ' (incl. ongkir)' : '');
   document.body.classList.toggle('ada-bar', n > 0);
   renderPanel();
 }
 function renderPanel() {
   const p = $('#orderPanel');
   if (!p || p.style.display === 'none') return;
+  const ongkir = $('#opOngkir');
+  if (ongkir) ongkir.textContent = rp(ongkosKurir());
   const items = lineItems();
   $('#opList').innerHTML = items.length ? items.map((c, i) =>
     '<div class="op-row"><div class="op-info"><b>' + c.nama + '</b>' +
@@ -270,9 +279,8 @@ function bukaFormPesanan() {
   const p = $('#orderPanel');
   p.style.display = 'block';
   renderPanel();
-  $('#menu').scrollIntoView({ behavior:'smooth', block:'start' });
-  toast('Isi nama & no HP, pilih pengirimannya ya 🙂');
-  setTimeout(() => { const f = $('#opNama'); if (f) f.focus({ preventScroll:true }); }, 450);
+  toast('Wajib: isi nama & no WhatsApp, lalu tekan tombol hijau 🙂');
+  setTimeout(() => { const f = $('#opNama'); if (f && !f.value) f.focus({ preventScroll:true }); }, 250);
 }
 function dataFormPesanan() {
   const pilih = document.querySelector('input[name=kirim]:checked');
@@ -285,16 +293,30 @@ function dataFormPesanan() {
     jam_ambil: ($('#opJam').value || '').trim()
   };
 }
+function bersihError() {
+  const box = $('#opError');
+  if (box) { box.hidden = true; box.textContent = ''; }
+  ['#opNama', '#opHp', '#opAlamat'].forEach(s => { const el = $(s); if (el) el.classList.remove('err'); });
+}
+function tampilError(pesan, id) {
+  const box = $('#opError');
+  if (box) { box.hidden = false; box.textContent = '⚠️ ' + pesan; }
+  ['#opNama', '#opHp', '#opAlamat'].forEach(s => { const el = $(s); if (el) el.classList.remove('err'); });
+  const el = id ? $(id) : null;
+  if (el) { el.classList.add('err'); try { el.focus({ preventScroll:true }); } catch (e) { el.focus(); } }
+}
 function validasiForm(f) {
-  if (!f.nama) { $('#opNama').focus(); return 'Isi nama kamu dulu ya'; }
-  if (!f.hp) { $('#opHp').focus(); return 'Isi no HP / WhatsApp dulu ya'; }
-  if (f.metode === 'kurir' && !f.alamat) { $('#opAlamat').focus(); return 'Isi alamat tujuan dulu ya'; }
+  bersihError();
+  if (!f.nama) { tampilError('Nama kamu wajib diisi ya kak', '#opNama'); return 'Nama wajib diisi'; }
+  if (f.hp.replace(/\D/g, '').length < 8) { tampilError('No WhatsApp wajib diisi dan harus benar ya kak', '#opHp'); return 'No WhatsApp wajib diisi'; }
+  if (f.metode === 'kurir' && !f.alamat) { tampilError('Alamat tujuan wajib diisi kalau pakai kurir ya kak', '#opAlamat'); return 'Alamat wajib diisi'; }
   return '';
 }
 function infoKirim(f) {
   if (f.metode !== 'kurir') return '🏍️ Ambil sendiri di toko\n   🕒 Jam ambil: ' + (f.jam_ambil || 'kapan saja');
   return '🚚 Kurir ke rumah\n   📍 Alamat: ' + f.alamat +
-    (f.catatan ? '\n   📝 Catatan: ' + f.catatan : '');
+    (f.catatan ? '\n   📝 Catatan: ' + f.catatan : '') +
+    '\n   💵 Ongkos kurir: ' + rp(ongkosKurir()) + ' (dikonfirmasi kakak kami lewat WA)';
 }
 function urlPesanan() {
   const c = window.CONFIG || {};
@@ -321,39 +343,53 @@ async function kirimWA() {
   const err = validasiForm(f);
   if (err) { $('#orderPanel').style.display = 'block'; return toast(err); }
 
-  const btn = $('#obWa'), teksAwal = btn.textContent;
+  const btn = $('#obWa'), btnPanel = $('#opKirim');
+  const teksAwal = btn.textContent, teksPanel = btnPanel ? btnPanel.textContent : '';
   btn.disabled = true; btn.textContent = 'Mengirim...';
+  if (btnPanel) { btnPanel.disabled = true; btnPanel.textContent = 'Mengirim...'; }
   const noPesanan = 'PS-' + Date.now().toString(36).toUpperCase();
+  const subtotal = totalRp();
+  const ongkir = f.metode === 'kurir' ? ongkosKurir() : 0;
   const online = await kirimPesananOnline({
     id: 'ps_' + Date.now().toString(36),
     no_pesanan: noPesanan,
     nama: f.nama, hp: f.hp, metode: f.metode,
     alamat: f.alamat, catatan: f.catatan, jam_ambil: f.jam_ambil,
-    total: totalRp(), items: items.map(c => ({
+    subtotal, ongkos_kurir: ongkir, total: subtotal + ongkir,
+    items: items.map(c => ({
       menu_id: c.menu_id, nama: c.nama, harga: c.harga, qty: c.qty, mix: c.mix || ''
     }))
   });
   btn.disabled = false; btn.textContent = teksAwal;
+  if (btnPanel) { btnPanel.disabled = false; btnPanel.textContent = teksPanel; }
 
   const s = DATA.settings;
   const linesTxt = items.map((c, i) =>
     (i + 1) + '. ' + c.nama + ' ×' + c.qty + ' = ' + rp(c.harga * c.qty) + (c.mix ? '\n   └ 🧊 isi: ' + c.mix : '')
   );
+  const rincian = f.metode === 'kurir'
+    ? '🧾 Subtotal: ' + rp(subtotal) + '\n🚚 Ongkos kurir: ' + rp(ongkir) + '\n💰 *Total: ' + rp(subtotal + ongkir) + '*'
+    : '💰 *Total: ' + rp(subtotal) + '*';
   const text =
     'Halo ' + s.nama_toko + '! 👋🍳\n' +
     '📦 *Pesanan ' + noPesanan + '*\n' +
     '👤 Nama: ' + f.nama + '\n' +
-    '📱 No. HP: ' + f.hp + '\n' +
+    '📱 No. WhatsApp: ' + f.hp + '\n' +
     'Saya mau pesan:\n' + linesTxt.join('\n') + '\n' +
-    '💰 *Total: ' + rp(totalRp()) + '*\n' +
+    rincian + '\n' +
     infoKirim(f) + '\n' +
-    '\nTerima kasih! 🙏';
+    '\nTotal & ongkir akan dikonfirmasi kakak kami lewat WhatsApp. Terima kasih! 🙏';
   const url = 'https://wa.me/' + s.wa + '?text=' + encodeURIComponent(text);
   const w = window.open(url, '_blank');
   if (!w) window.location.href = url;
   toast(online ? 'Pesanan masuk ke WA & aplikasi admin ✔' : 'Pesanan diarahkan ke WhatsApp ✔');
 }
 $('#obWa').onclick = kirimWA;
+if ($('#opKirim')) $('#opKirim').onclick = kirimWA;
+['#opNama', '#opHp', '#opAlamat'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('input', bersihError);
+});
 $('#btnWaHeader').onclick = bukaFormPesanan;
 $('#obInfo').onclick = () => {
   const p = $('#orderPanel');
@@ -367,6 +403,9 @@ function updateFormPengiriman() {
   const kurir = !!r && r.value === 'kurir';
   $('#opAlamatWrap').style.display = kurir ? 'block' : 'none';
   $('#opAmbilWrap').style.display = kurir ? 'none' : 'block';
+  renderBar();
+  renderPanel();
+  bersihError();
 }
 Array.from(document.querySelectorAll('input[name=kirim]')).forEach(r => r.onchange = updateFormPengiriman);
 updateFormPengiriman();

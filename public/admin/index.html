@@ -382,14 +382,15 @@
               <span>Printer Bluetooth (khusus APK Android)</span>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <select class="select" id="printerMac" style="flex:1;min-width:200px"><option value="">Pilih printer Bluetooth</option></select>
-                <button type="button" class="btn btn-ghost btn-sm" id="btnCariPrinter">Cari Printer Baru</button>
-                <button type="button" class="btn btn-ghost btn-sm" id="btnIzinBT">Izinkan BT</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnIzinBT">1. Izinkan BT</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnCariPrinter">2. Cari Printer Baru</button>
+                <button type="button" class="btn btn-accent btn-sm" id="btnPairBT">3. Pasangkan Printer</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnBukaBluetooth">Buka Setelan BT</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnDiagnosaBT">Diagnosa BT</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnTestBluetooth">Test Print BT</button>
               </div>
               <input class="input" id="printerMacManual" placeholder="Atau masukkan MAC, mis. 00:11:22:33:44:55" style="margin-top:8px">
-              <small style="color:var(--muted);margin-top:8px;display:block" id="btPrinterHint">Tekan “Cari Printer Baru” atau “Buka Setelan BT” untuk memasangkan printer. PIN RPP02N biasanya 0000.</small>
+              <small style="color:var(--muted);margin-top:8px;display:block" id="btPrinterHint">Alur: Izinkan BT → Cari Printer Baru → pilih printer → Pasangkan Printer (PIN 0000/1234) → Simpan Pengaturan Struk → Test Print BT. Nyalakan printer dulu ya.</small>
               <div class="bt-status" id="btStatus" hidden></div>
             </div>
             <label class="field"><span>Lebar Kertas</span><select class="select" id="printerLebar"><option value="58">58 mm</option><option value="80">80 mm</option></select></label>

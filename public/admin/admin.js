@@ -312,7 +312,7 @@ function field(label, input, full) {
 const TOKO_FIELDS = [
   ['nama_toko','Nama Toko'], ['tagline','Tagline'], ['wa','Nomor WhatsApp (628...)'],
   ['instagram','Instagram (@...)'], ['alamat','Alamat'], ['maps_url','Link Google Maps'],
-  ['logo','URL Logo'], ['kertas_nota','Kertas nota (mm)']
+  ['logo','URL Logo'], ['kertas_nota','Kertas nota (mm)'], ['ongkos_kurir','Ongkos Kurir (Rp)']
 ];
 function renderToko() {
   const s = DB.settings;
@@ -361,6 +361,7 @@ function applyPreview() {
 $('#simpanToko').onclick = async () => {
   const s = { ...DB.settings };
   TOKO_FIELDS.forEach(([k]) => s[k] = $('#set_' + k).value.trim());
+  s.ongkos_kurir = Math.max(0, Number(String(s.ongkos_kurir || '').replace(/[^\d]/g, '')) || 0);
   s.warna_utama = $('#warnaUtamaHex').value.trim() || s.warna_utama;
   s.warna_aksen = $('#warnaAksenHex').value.trim() || s.warna_aksen;
   try { await post('/api/admin/save', { settings: s }); DB.settings = s; renderAll(); toast('✓ Toko & warna tersimpan. Muat ulang website untuk melihat perubahan.'); }
@@ -966,7 +967,7 @@ function renderPesanan() {
   $('#pesananBody').innerHTML = items.length ? items.map(p => {
     const selesai = p.status === 'selesai';
     const siap = p.status === 'siap';
-    const ambil = p.metode !== 'kurir';
+    const kirim = p.metode === 'kurir';
     const jam = p.jam_ambil ? '<br><small>🕒 Jam ambil: <b>' + esc(p.jam_ambil) + '</b></small>' : '';
     const itemHtml = (p.items || []).map(it =>
       esc(it.nama) + ' ×' + Number(it.qty||1) + (it.mix ? '<small>🧊 ' + esc(it.mix) + '</small>' : '')
@@ -974,25 +975,40 @@ function renderPesanan() {
     const hp = String(p.hp || '').replace(/[^0-9]/g, '');
     const wa = hp ? 'https://wa.me/' + (hp.startsWith('0') ? '62' + hp.slice(1) : hp) : '';
     const trxHistory = p.trx_id && (DB.transaksi || []).find(x => x.id === p.trx_id);
-    const statusLabel = selesai ? 'Selesai' : siap ? 'Siap diambil' : 'Baru';
+    const ongkir = Number(p.ongkos_kurir) || 0;
+    const statusLabel = selesai ? 'Selesai' : siap ? (kirim ? 'Siap dikirim' : 'Siap diambil') : 'Baru';
     const statusKelas = selesai ? 'pesanan-selesai' : siap ? 'pesanan-siap' : 'pesanan-baru';
+    const kirimCell = kirim
+      ? '🚚 Kurir<br><small>' + esc(p.alamat || '-') + (p.catatan ? '<br>📝 ' + esc(p.catatan) : '') +
+        '</small><br><small>💵 Ongkir: <b>' + rp(ongkir) + '</b></small>'
+      : '🏍️ Ambil sendiri' + jam;
+    const konfirmBtn = selesai ? '' :
+      (kirim
+        ? '<input class="input ongkir-admin" type="number" min="0" step="1000" value="' + ongkir + '" data-ongkir="' + esc(p.id) + '" aria-label="Ongkos kurir" title="Ongkos kurir">' +
+          '<button class="btn btn-accent btn-sm" data-konfirm-ps="' + esc(p.id) + '">💬 Konfirmasi total</button> '
+        : '<button class="btn btn-accent btn-sm" data-konfirm-ps="' + esc(p.id) + '">💬 Konfirmasi WA</button> ');
     return '<tr><td><b>' + esc(p.no_pesanan) + '</b></td>' +
       '<td>' + new Date(p.waktu).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'}) + '</td>' +
       '<td><b>' + esc(p.nama || '-') + '</b><br><small>' + esc(p.hp || '-') + '</small></td>' +
-      '<td>' + (p.metode === 'kurir' ? '🚚 Kurir<br><small>' + esc(p.alamat || '-') + (p.catatan ? '<br>' + esc(p.catatan) : '') + '</small>' : '🏍️ Ambil sendiri' + jam) + '</td>' +
+      '<td>' + kirimCell + '</td>' +
       '<td class="pesanan-item">' + itemHtml + '</td>' +
-      '<td><b>' + rp(p.total) + '</b></td>' +
+      '<td><b>' + rp(p.total) + '</b>' + (kirim ? '<br><small>termasuk ongkir</small>' : '') + '</td>' +
       '<td><span class="' + statusKelas + '">' + statusLabel + '</span>' +
+      (p.dikonfirmasi ? '<br><small>✓ Total dikonfirmasi</small>' : '') +
       (trxHistory ? '<br><small>History: <b>' + esc(trxHistory.no_nota) + '</b></small>' : '') + '</td>' +
       '<td><button class="btn btn-ghost btn-sm" data-lihat-ps="' + esc(p.id) + '">Lihat</button> ' +
       (wa ? '<a class="btn btn-ghost btn-sm" href="' + wa + '" target="_blank" rel="noopener">WA</a> ' : '') +
-      (ambil && !selesai ? '<button class="btn btn-accent btn-sm" data-siap-ps="' + esc(p.id) + '">' + (siap ? '📣 Kirim ulang' : '📦 Siap diambil') + '</button> ' : '') +
+      konfirmBtn +
+      (!selesai ? '<button class="btn btn-accent btn-sm" data-siap-ps="' + esc(p.id) + '">' +
+        (siap ? '📣 Ready lagi' : (kirim ? '🚚 Ready dikirim' : '📦 Ready diambil')) + '</button> ' : '') +
       (siap ? '<button class="btn btn-ghost btn-sm" data-status-ps="' + esc(p.id) + '" data-status="baru">↩️ Batal siap</button> ' : '') +
-      '<button class="btn btn-sm" data-status-ps="' + esc(p.id) + '" data-status="' + (selesai ? 'baru' : 'selesai') + '">' + (selesai ? 'Buka lagi' : '✓ Selesai') + '</button> ' +
+      '<button class="btn btn-sm" data-status-ps="' + esc(p.id) + '" data-status="' + (selesai ? 'baru' : 'selesai') + '">' +
+      (selesai ? 'Buka lagi' : (kirim ? '✓ Sudah sampai' : '✓ Sudah diambil')) + '</button> ' +
       '<button class="btn btn-danger btn-sm" data-hapus-ps="' + esc(p.id) + '">Hapus</button></td></tr>';
   }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Belum ada pesanan masuk.</td></tr>';
   $$('[data-status-ps]').forEach(b => b.onclick = () => ubahStatusPesanan(b.dataset.statusPs, b.dataset.status));
   $$('[data-siap-ps]').forEach(b => b.onclick = () => tandaiSiapDiambil(b.dataset.siapPs));
+  $$('[data-konfirm-ps]').forEach(b => b.onclick = () => konfirmasiPesananWA(b.dataset.konfirmPs));
   $$('[data-lihat-ps]').forEach(b => b.onclick = () => lihatPesanan(b.dataset.lihatPs));
   $$('[data-hapus-ps]').forEach(b => b.onclick = () => hapusPesananAdmin(b.dataset.hapusPs));
 }
@@ -1016,29 +1032,75 @@ async function cekPesananBaru(awal) {
     }
   } catch (e) { /* polling diam-diam, tidak mengganggu kasir */ }
 }
-function bukaWaSiapDiambil(p) {
-  const hp = String(p.hp || '').replace(/[^0-9]/g, '');
+function bukaWaKe(pelanggan, teks) {
+  const hp = String(pelanggan || '').replace(/[^0-9]/g, '');
   if (!hp) return false;
   const tujuan = hp.startsWith('0') ? '62' + hp.slice(1) : hp;
-  const s = DB.settings || {};
-  const jam = p.jam_ambil ? '\n🕒 Jam ambil: ' + p.jam_ambil : '';
-  const teks =
-    'Halo ' + (p.nama || 'kak') + '! 👋\n' +
-    'Pesanan *' + p.no_pesanan + '* sudah *siap diambil* di ' + (s.nama_toko || 'SUNDAY BREAKFAST') + '. 🙌\n' +
-    '💰 Total: ' + rp(p.total) + jam + '\n' +
-    '📍 ' + (s.alamat || '') + (s.maps_url ? '\n' + s.maps_url : '') + '\n' +
-    'Sampai jumpa ya! 😊';
   window.open('https://wa.me/' + tujuan + '?text=' + encodeURIComponent(teks), '_blank');
   return true;
+}
+async function konfirmasiPesananWA(id) {
+  const p = (DB.pesanan || []).find(x => x.id === id);
+  if (!p) return;
+  const kirim = p.metode === 'kurir';
+  const inputOngkir = document.querySelector('[data-ongkir="' + CSS.escape(id) + '"]');
+  const ongkir = kirim ? Math.max(0, Number(inputOngkir && inputOngkir.value) || 0) : 0;
+  try {
+    const r = await post('/api/admin/pesanan/konfirmasi', { id, ongkos_kurir: ongkir });
+    if (r.error) throw new Error(r.error);
+    Object.assign(p, {
+      subtotal: (p.items || []).reduce((a, it) => a + (Number(it.harga) || 0) * (Number(it.qty) || 1), 0),
+      ongkos_kurir: r.ongkos_kurir,
+      total: r.total,
+      dikonfirmasi: true
+    });
+    if ($('#pesananBody')) renderPesanan();
+    const s = DB.settings || {};
+    const sapa = 'Halo kak ' + (p.nama || 'Pelanggan') + '! 👋';
+    const rincian = kirim
+      ? 'Untuk pesanan *' + p.no_pesanan + '*:\n' +
+        '🧾 Subtotal makanan: ' + rp(p.subtotal) + '\n' +
+        '🚚 Ongkos kurir: ' + rp(p.ongkos_kurir) + '\n' +
+        '💰 *Total jadi ' + rp(p.total) + '* ya kak.\n' +
+        '📍 Alamat: ' + (p.alamat || '-') + (p.catatan ? '\n📝 Catatan: ' + p.catatan : '') + '\n'
+      : 'Untuk pesanan *' + p.no_pesanan + '*, total jadi *' + rp(p.total) + '* ya kak.\n';
+    const jam = !kirim && p.jam_ambil ? '🕒 Jam ambil: ' + p.jam_ambil + '\n' : '';
+    const teks = sapa + '\n' + rincian + jam +
+      '📍 ' + (s.nama_toko || 'SUNDAY BREAKFAST') + ' — ' + (s.alamat || '') +
+      (s.maps_url ? '\n' + s.maps_url : '') +
+      '\n\nKonfirmasi dulu ya kak, nanti kami kabarin kalau pesanan sudah ready 😊';
+    if (!bukaWaKe(p.hp, teks)) return toast('No WhatsApp pelanggan belum ada, isi dulu ya');
+    toast('✓ Total dikonfirmasi & WA dibuka');
+    skipPesananPollingHingga = Date.now() + 12000;
+    pesananPollGen++;
+  } catch (e) { toast(e.message || String(e)); }
+}
+function bukaWaSiapDiambil(p) {
+  const s = DB.settings || {};
+  const kirim = p.metode === 'kurir';
+  const teks = kirim
+    ? 'Halo kak ' + (p.nama || 'Pelanggan') + '! 👋\n' +
+      'Pesanan *' + p.no_pesanan + '* sudah *ready untuk dikirim* kak 🚚\n' +
+      '💰 Total: ' + rp(p.total) + ' (ongkir ' + rp(p.ongkos_kurir || 0) + ')\n' +
+      '📍 Alamat: ' + (p.alamat || '-') + '\n' +
+      'Kurir kami segera berangkat ya kak, ditunggu kedatangannya 🙏'
+    : 'Halo kak ' + (p.nama || 'Pelanggan') + '! 👋\n' +
+      'Pesanan *' + p.no_pesanan + '* sudah *ready* kak, silakan diambil di ' +
+      (s.nama_toko || 'SUNDAY BREAKFAST') + ' 🙌\n' +
+      '💰 Total: ' + rp(p.total) + '\n' +
+      (p.jam_ambil ? '🕒 Jam ambil: ' + p.jam_ambil + '\n' : '') +
+      '📍 ' + (s.alamat || '') + (s.maps_url ? '\n' + s.maps_url : '') +
+      '\n\nSampai jumpa ya kak! 😊';
+  return bukaWaKe(p.hp, teks);
 }
 async function tandaiSiapDiambil(id) {
   const p = (DB.pesanan || []).find(x => x.id === id);
   if (!p) return;
-  if (!bukaWaSiapDiambil(p)) return toast('No HP pelanggan belum ada, isi dulu ya');
+  if (!bukaWaSiapDiambil(p)) return toast('No WhatsApp pelanggan belum ada, isi dulu ya');
   const lama = p.status;
   p.status = 'siap';
   if ($('#pesananBody')) renderPesanan();
-  toast('✓ WA terkirim, pesanan siap diambil');
+  toast('✓ WA ready terkirim ke pelanggan');
   skipPesananPollingHingga = Date.now() + 12000;
   pesananPollGen++;
   try {
@@ -1082,7 +1144,7 @@ function lihatPesanan(id) {
     '<div class="table-scroll"><table class="menu-table resep-table"><thead><tr><th>Item</th><th>Qty</th><th>Harga</th></tr></thead><tbody>' +
     (p.items || []).map(it => '<tr><td>' + esc(it.nama) + (it.mix ? '<br><small>🧊 ' + esc(it.mix) + '</small>' : '') + '</td><td>' + Number(it.qty||1) + '</td><td>' + rp(it.harga) + '</td></tr>').join('') +
     '</tbody></table></div>' +
-    '<div class="resep-total">' + (p.metode === 'kurir' ? '🚚 Alamat: ' + esc(p.alamat || '-') + (p.catatan ? '<br>📝 ' + esc(p.catatan) : '') : '🏍️ Ambil sendiri' + (p.jam_ambil ? '<br>🕒 Jam ambil: <b>' + esc(p.jam_ambil) + '</b>' : '')) + '<br>Total: <b>' + rp(p.total) + '</b></div>' +
+    '<div class="resep-total">' + (p.metode === 'kurir' ? '🚚 Alamat: ' + esc(p.alamat || '-') + (p.catatan ? '<br>📝 ' + esc(p.catatan) : '') + '<br>🧾 Subtotal: ' + rp(p.subtotal) + '<br>🚚 Ongkos kurir: ' + rp(p.ongkos_kurir || 0) : '🏍️ Ambil sendiri' + (p.jam_ambil ? '<br>🕒 Jam ambil: <b>' + esc(p.jam_ambil) + '</b>' : '')) + '<br>Total: <b>' + rp(p.total) + '</b>' + (p.dikonfirmasi ? '<br>✓ Sudah dikonfirmasi via WA' : '') + '</div>' +
     '<div class="modal-foot"><button class="btn btn-dark" id="psTutup">Tutup</button></div></div>';
   document.body.appendChild(bg);
   $('#psTutup').onclick = () => bg.remove();
@@ -1273,9 +1335,24 @@ function isiSelectPrinter(daftar) {
   if (tersimpan && !peta[tersimpan]) peta[tersimpan] = { nama:'Printer tersimpan', mac:tersimpan };
   daftarPrinterBT = Object.keys(peta).map(mac => peta[mac]);
   select.innerHTML = '<option value="">Pilih printer Bluetooth</option>' +
-    daftarPrinterBT.map(d => '<option value="'+esc(d.mac)+'">'+esc(d.nama||d.mac)+' — '+esc(d.mac)+'</option>').join('');
+    daftarPrinterBT.map(d => '<option value="'+esc(d.mac)+'">'+esc(d.nama||d.mac)+' — '+esc(d.mac)+
+      (d.bond ? ' ('+(d.bond==='BONDED'?'terpasang':d.bond==='BONDING'?'menyambung':'belum dipasang')+')' : '')+'</option>').join('');
   select.value = tersimpan;
   $('#printerMacManual').value = tersimpan;
+}
+function pasangkanPrinterBT(mac) {
+  return new Promise((resolve, reject) => {
+    const bridge = btBridge();
+    if (!bridge || !bridge.pasangkanPerangkat)
+      return reject(new Error('Pasangkan Printer hanya tersedia di APK Sunday Admin terbaru'));
+    if (!mac) return reject(new Error('Pilih printer dulu ya'));
+    const cb = 'sundayBtPair' + Math.random().toString(36).slice(2);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Pairing timeout. Konfirmasi PIN di HP lalu coba lagi.')); }, 45000);
+    function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
+    window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons pairing' }); };
+    try { bridge.pasangkanPerangkat(mac, cb); }
+    catch (e) { bersihkan(); reject(e); }
+  });
 }
 function cariPrinterBT() {
   return new Promise((resolve, reject) => {
@@ -1313,19 +1390,21 @@ function renderPrinter() {
     $('#printerMac').disabled = false;
     $('#btnCariPrinter').disabled = false;
     $('#btnIzinBT').disabled = false;
+    if ($('#btnPairBT')) $('#btnPairBT').disabled = false;
     $('#btnBukaBluetooth').disabled = false;
     $('#btnDiagnosaBT').disabled = false;
     $('#btnTestBluetooth').disabled = false;
     hint.textContent = pesan && pesan.indexOf('ERROR') === 0
-      ? pesan + '. Tekan “Izinkan BT”, nyalakan Bluetooth, lalu “Buka Setelan BT”.'
-      : (daftar.length
-        ? (macPrinter() ? 'Printer terpasang sudah dipilih. Tekan “Simpan Pengaturan Struk”, lalu “Test Print BT”.' : 'Pilih printer di atas, lalu Simpan Pengaturan Struk.')
-        : 'Belum ada printer terpasang. Tekan “Izinkan BT”, lalu “Cari Printer Baru” atau “Buka Setelan BT”.');
+      ? pesan + '. Tekan “Izinkan BT”, nyalakan Bluetooth, lalu cari lagi.'
+      : (macPrinter()
+        ? 'Printer dipilih. Tekan “Pasangkan Printer” kalau belum terpasang, lalu Simpan Pengaturan Struk & Test Print BT.'
+        : 'Urutan: Izinkan BT → nyalakan printer → Cari Printer Baru → pilih → Pasangkan Printer (PIN 0000/1234).');
   } else {
     isiSelectPrinter([]);
     $('#printerMac').disabled = true;
     $('#btnCariPrinter').disabled = true;
     $('#btnIzinBT').disabled = true;
+    if ($('#btnPairBT')) $('#btnPairBT').disabled = true;
     $('#btnBukaBluetooth').disabled = true;
     $('#btnDiagnosaBT').disabled = true;
     $('#btnTestBluetooth').disabled = true;
@@ -1342,8 +1421,8 @@ if ($('#btnCariPrinter')) $('#btnCariPrinter').onclick = async () => {
     isiSelectPrinter(daftarPrinterBT.concat(r.perangkat || []));
     const n = (r.perangkat || []).length;
     $('#btPrinterHint').textContent = n
-      ? 'Ditemukan '+n+' perangkat. Pilih printer lalu Simpan Pengaturan Struk.'
-      : 'Tidak ada perangkat baru. Coba “Buka Setelan BT” untuk memasangkan printer.';
+      ? 'Ditemukan '+n+' perangkat. Pilih printer lalu tekan “Pasangkan Printer” (PIN 0000/1234).'
+      : 'Tidak ada perangkat baru. Nyalakan printer lalu cari lagi, atau buka Setelan BT.';
     toast(n ? '✓ '+n+' perangkat ditemukan' : 'Perangkat baru tidak ditemukan');
   } catch (e) { toast(e.message); }
 };
@@ -1356,6 +1435,20 @@ if ($('#btnIzinBT')) $('#btnIzinBT').onclick = () => {
     toast(r);
     renderPrinter();
   } catch (e) { setBtStatus('Gagal minta izin Bluetooth: ' + (e.message || e), true); }
+};
+if ($('#btnPairBT')) $('#btnPairBT').onclick = async () => {
+  const bridge = btBridge();
+  if (!bridge) return setBtStatus('Pasangkan Printer hanya tersedia di APK Sunday Admin.', true);
+  const mac = macPrinter();
+  if (!mac) return toast('Pilih printer dulu ya (Cari Printer Baru)');
+  setBtStatus('Memulai pairing ' + mac + '. Kalau muncul permintaan PIN, masukkan 0000 (atau 1234).', false);
+  toast('Menunggu konfirmasi pairing di HP...');
+  try {
+    const r = await pasangkanPrinterBT(mac);
+    setBtStatus(r.pesan || 'Pairing selesai', !r.ok);
+    toast(r.ok ? '✓ ' + r.pesan : r.pesan);
+    if (r.ok) renderPrinter();
+  } catch (e) { setBtStatus(e.message || String(e), true); toast(e.message); }
 };
 if ($('#btnBukaBluetooth')) $('#btnBukaBluetooth').onclick = () => {
   const bridge = btBridge();
@@ -1373,6 +1466,7 @@ if ($('#btnDiagnosaBT')) $('#btnDiagnosaBT').onclick = () => {
       'Android ' + d.android + ' · WebView: ' + (d.url || '-') + '\n' +
       'Bluetooth: ' + (d.aktif ? 'aktif' : 'MATI') + ' · Izin BT: ' + (d.izinBluetooth ? 'OK' : 'BELUM') +
       ' · Izin Scan: ' + (d.izinScan ? 'OK' : 'BELUM') + '\n' +
+      'Pencarian printer: ' + (d.scanAktif ? 'berjalan' : 'tidak berjalan') + '\n' +
       'Perangkat terpasang: ' + perangkat,
       !d.aktif || !d.izinBluetooth
     );

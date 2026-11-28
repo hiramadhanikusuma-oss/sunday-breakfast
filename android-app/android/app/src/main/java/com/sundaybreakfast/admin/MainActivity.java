@@ -36,6 +36,9 @@ public class MainActivity extends BridgeActivity {
             UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     private BroadcastReceiver penerimaScan = null;
+    private BroadcastReceiver penerimaBond = null;
+    private String callbackBond = "";
+    private String macBondDitunggu = "";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,6 +49,13 @@ public class MainActivity extends BridgeActivity {
         mintaIzinBluetoothJikaPerlu();
         mintaIzinNotifikasiJikaPerlu();
         PesananNotif.jadwalkan(this);
+    }
+
+    @Override
+    public void onDestroy() {
+        hentikanScan();
+        hentikanBondReceiver();
+        super.onDestroy();
     }
 
     private void mintaIzinNotifikasiJikaPerlu() {
@@ -117,6 +127,87 @@ public class MainActivity extends BridgeActivity {
         return callback;
     }
 
+    private String statusBond(int state) {
+        if (state == BluetoothDevice.BOND_BONDED) return "BONDED";
+        if (state == BluetoothDevice.BOND_BONDING) return "BONDING";
+        return "NONE";
+    }
+
+    private void kirimBond(String cb, boolean ok, String pesan, String mac, int state) {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("ok", ok);
+            o.put("pesan", pesan);
+            o.put("mac", mac == null ? "" : mac);
+            o.put("state", statusBond(state));
+        } catch (Exception ignored) {}
+        kirimKeJS(cb, o);
+    }
+
+    private void hentikanBondReceiver() {
+        if (penerimaBond != null) {
+            try { unregisterReceiver(penerimaBond); } catch (Exception ignored) {}
+            penerimaBond = null;
+        }
+        callbackBond = "";
+        macBondDitunggu = "";
+    }
+
+    private void tungguBond(final String mac, final String cb) {
+        hentikanBondReceiver();
+        callbackBond = cb;
+        macBondDitunggu = mac;
+        IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        penerimaBond = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (!BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(intent.getAction())) return;
+                BluetoothDevice d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if (d == null || d.getAddress() == null) return;
+                if (!d.getAddress().equalsIgnoreCase(macBondDitunggu)) return;
+                int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE);
+                int prev = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.BOND_NONE);
+                if (state == BluetoothDevice.BOND_BONDED) {
+                    String nama = d.getName() == null ? d.getAddress() : d.getName();
+                    kirimBond(callbackBond, true,
+                            "OK: printer " + nama + " berhasil dipasangkan. PIN 0000/1234 sudah tersimpan.",
+                            d.getAddress(), state);
+                    hentikanBondReceiver();
+                } else if (state == BluetoothDevice.BOND_NONE && prev == BluetoothDevice.BOND_BONDING) {
+                    kirimBond(callbackBond, false,
+                            "ERROR: pairing gagal/dibatalkan. Coba lagi, PIN RPP02N biasanya 0000 atau 1234.",
+                            d.getAddress(), state);
+                    hentikanBondReceiver();
+                }
+            }
+        };
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(penerimaBond, f, Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(penerimaBond, f);
+            }
+        } catch (SecurityException e) {
+            hentikanBondReceiver();
+            kirimBond(cb, false, "ERROR: izin Bluetooth belum diberikan saat pairing", mac, BluetoothDevice.BOND_NONE);
+        }
+    }
+
+    private boolean buatBond(BluetoothDevice device) {
+        if (device.getBondState() == BluetoothDevice.BOND_BONDED) return true;
+        try {
+            return device.createBond();
+        } catch (Exception e) {
+            try {
+                Method m = device.getClass().getMethod("createBond");
+                Object hasil = m.invoke(device);
+                return hasil instanceof Boolean && (Boolean) hasil;
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+    }
+
     private JSONArray daftarPerangkat(BluetoothAdapter adapter) {
         JSONArray hasil = new JSONArray();
         try {
@@ -127,6 +218,7 @@ public class MainActivity extends BridgeActivity {
                     o.put("nama", d.getName() == null ? d.getAddress() : d.getName());
                     o.put("mac", d.getAddress());
                     o.put("terpasang", true);
+                    o.put("bond", statusBond(d.getBondState()));
                     hasil.put(o);
                 } catch (Exception ignored) {}
             }
@@ -147,6 +239,11 @@ public class MainActivity extends BridgeActivity {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter == null) return "ERROR: Bluetooth tidak tersedia di HP ini";
         if (!adapter.isEnabled()) return "ERROR: Bluetooth masih mati. Nyalakan dulu ya";
+        if (Build.VERSION.SDK_INT >= 31 &&
+                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                        != PackageManager.PERMISSION_GRANTED) {
+            return "ERROR: izin Nearby devices/Bluetooth belum diberikan. Tekan Izinkan BT dulu ya";
+        }
 
         BluetoothDevice device;
         try {
@@ -154,9 +251,14 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception e) {
             return "ERROR: MAC printer tidak valid (" + mac + ")";
         }
+        if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+            return "ERROR: printer belum dipasangkan (bond). Pilih printer, tekan Pasangkan Printer, " +
+                    "lalu konfirmasi PIN 0000/1234 di HP";
+        }
 
         StringBuilder riwayat = new StringBuilder();
-        String[] metode = {"SPP aman", "SPP tanpa otorisasi", "RFCOMM port 1", "RFCOMM port 2"};
+        String[] metode = {"SPP aman", "SPP tanpa otorisasi", "RFCOMM port 1",
+                "RFCOMM port 2", "RFCOMM insecure port 1"};
         for (int percobaan = 0; percobaan < metode.length; percobaan++) {
             BluetoothSocket socket = null;
             OutputStream out = null;
@@ -169,10 +271,17 @@ public class MainActivity extends BridgeActivity {
                     case 1:
                         socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
                         break;
-                    default:
+                    case 2:
+                    case 3: {
                         Method m = device.getClass().getMethod("createRfcommSocket", int.class);
                         socket = (BluetoothSocket) m.invoke(device, percobaan == 2 ? 1 : 2);
                         break;
+                    }
+                    default: {
+                        Method m = device.getClass().getMethod("createInsecureRfcommSocket", int.class);
+                        socket = (BluetoothSocket) m.invoke(device, 1);
+                        break;
+                    }
                 }
                 socket.connect();
                 out = socket.getOutputStream();
@@ -180,9 +289,10 @@ public class MainActivity extends BridgeActivity {
                 out.write((teks == null ? "" : teks).getBytes("UTF-8"));
                 out.write(new byte[]{0x0A, 0x0A, 0x0A});
                 out.flush();
+                try { Thread.sleep(120); } catch (InterruptedException ignored) {}
                 return "OK: struk terkirim via " + metode[percobaan];
             } catch (SecurityException e) {
-                return "ERROR: izin Bluetooth belum diberikan. Buka APK, izinkan Nearby devices/Lokasi";
+                return "ERROR: izin Bluetooth belum diberikan. Tekan Izinkan BT dulu ya";
             } catch (Exception e) {
                 String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
                 riwayat.append(metode[percobaan]).append(": ").append(pesan).append(" | ");
@@ -255,6 +365,7 @@ public class MainActivity extends BridgeActivity {
                 BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
                 o.put("adapter", adapter != null);
                 o.put("aktif", adapter != null && adapter.isEnabled());
+                o.put("scanAktif", adapter != null && izinScan() && adapter.isDiscovering());
                 o.put("terpasang", adapter != null && izinBluetooth()
                         ? daftarPerangkat(adapter) : new JSONArray());
             } catch (Exception e) {
@@ -285,6 +396,58 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception e) {
                 return "ERROR: " + e.getMessage();
             }
+        }
+
+        /* Pasangkan (bond) printer seperti aplikasi POS: createBond + pantau ACTION_BOND_STATE_CHANGED. */
+        @JavascriptInterface
+        public void pasangkanPerangkat(String mac, String callback) {
+            final String cb = namaCallback(callback);
+            final String alamat = mac == null ? "" : mac.trim();
+            runOnUiThread(() -> {
+                if (!originDiizinkan()) {
+                    kirimBond(cb, false, "ERROR: halaman tidak diizinkan", alamat, BluetoothDevice.BOND_NONE);
+                    return;
+                }
+                if (!izinBluetooth()) {
+                    mintaIzinBluetoothJikaPerlu();
+                    kirimBond(cb, false,
+                            "ERROR: izin Nearby devices/Bluetooth belum diberikan. Tekan Izinkan BT lalu coba lagi.",
+                            alamat, BluetoothDevice.BOND_NONE);
+                    return;
+                }
+                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+                if (adapter == null || !adapter.isEnabled()) {
+                    kirimBond(cb, false, "ERROR: Bluetooth masih mati. Nyalakan dulu ya",
+                            alamat, BluetoothDevice.BOND_NONE);
+                    return;
+                }
+                if (alamat.isEmpty()) {
+                    kirimBond(cb, false, "ERROR: pilih printer dulu ya", alamat, BluetoothDevice.BOND_NONE);
+                    return;
+                }
+                try {
+                    BluetoothDevice device = adapter.getRemoteDevice(alamat);
+                    if (device.getBondState() == BluetoothDevice.BOND_BONDED) {
+                        kirimBond(cb, true, "OK: printer sudah terpasang", alamat, BluetoothDevice.BOND_BONDED);
+                        return;
+                    }
+                    if (adapter.isDiscovering()) adapter.cancelDiscovery();
+                    tungguBond(alamat, cb);
+                    if (!buatBond(device)) {
+                        hentikanBondReceiver();
+                        kirimBond(cb, false,
+                                "ERROR: gagal memulai pairing. Buka Setelan BT lalu pasangkan manual.",
+                                alamat, device.getBondState());
+                    }
+                } catch (SecurityException e) {
+                    hentikanBondReceiver();
+                    kirimBond(cb, false, "ERROR: izin Bluetooth belum diberikan", alamat,
+                            BluetoothDevice.BOND_NONE);
+                } catch (Exception e) {
+                    hentikanBondReceiver();
+                    kirimBond(cb, false, "ERROR: " + e.getMessage(), alamat, BluetoothDevice.BOND_NONE);
+                }
+            });
         }
 
         /* Cari perangkat Bluetooth Classic di sekitar (butuh izin SCAN/lokasi). */
@@ -332,7 +495,8 @@ public class MainActivity extends BridgeActivity {
                         try {
                             o.put("nama", d.getName() == null ? d.getAddress() : d.getName());
                             o.put("mac", d.getAddress());
-                            o.put("terpasang", false);
+                            o.put("terpasang", d.getBondState() == BluetoothDevice.BOND_BONDED);
+                            o.put("bond", statusBond(d.getBondState()));
                             perangkat.put(o);
                         } catch (Exception ignored) {}
                     } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(aksi)) {

@@ -97,6 +97,7 @@ function prosesPost_(b, p) {
   if (r === '/api/admin/data') return bacaDB_();
   if (r === '/api/admin/pesanan') return { pesanan: bacaDB_().pesanan || [] };
   if (r === '/api/admin/pesanan/status') return statusPesanan_(b);
+  if (r === '/api/admin/pesanan/konfirmasi') return konfirmasiPesanan_(b);
   if (r === '/api/admin/pesanan/hapus') return hapusPesanan_(b);
   if (r === '/api/admin/save') return simpan_(b);
   if (r === '/api/admin/upload') return unggah_(b);
@@ -261,6 +262,11 @@ function bacaDB_() {
       }
     } catch (e) {}
   }
+  /* Sheet lama belum punya ongkos kurir: pakai nilai bawaan sampai diubah di Pengaturan Toko. */
+  if (out.settings.ongkos_kurir === undefined || out.settings.ongkos_kurir === null) {
+    var seedOngkir = (JSON.parse(SEED_JSON).settings || {}).ongkos_kurir;
+    out.settings.ongkos_kurir = Number(seedOngkir || 10000);
+  }
   out.pesanan.sort(function (a, b) { return String(b.waktu || '').localeCompare(String(a.waktu || '')); });
   return out;
 }
@@ -309,7 +315,10 @@ function terimaPesanan_(b) {
       catatan: String(b.catatan || '').slice(0, 500),
       jam_ambil: String(b.jam_ambil || '').slice(0, 20),
       items: items,
+      subtotal: Number(b.subtotal) || 0,
+      ongkos_kurir: Math.max(0, Number(b.ongkos_kurir) || 0),
       total: Number(b.total) || 0,
+      dikonfirmasi: false,
       status: 'baru',
       sumber: 'website'
     };
@@ -341,6 +350,8 @@ function trxDariPesanan_(d, p) {
     no_nota: String(p.no_pesanan || ('SB-' + String(d.counter_nota).padStart(5, '0'))).slice(0, 40),
     waktu: p.waktu || new Date().toISOString(),
     items: items,
+    subtotal: Number(p.subtotal) || 0,
+    ongkos_kurir: Number(p.ongkos_kurir) || 0,
     total: Number(p.total) || 0,
     hpp: items.reduce(function (a, it) { return a + Number(it.hpp || 0) * Number(it.qty || 1); }, 0),
     bayar: Number(p.total) || 0,
@@ -397,6 +408,29 @@ function statusPesanan_(b) {
     lock.releaseLock();
   }
 }
+function konfirmasiPesanan_(b) {
+  var id = String(b.id || '');
+  var ongkir = Math.max(0, Number(b.ongkos_kurir) || 0);
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { error: 'Pesanan sedang diproses' }; }
+  try {
+    var d = bacaDB_();
+    var p = (d.pesanan || []).find(function (x) { return x.id === id; });
+    if (!p) return { error: 'Pesanan tidak ditemukan' };
+    var subtotal = (p.items || []).reduce(function (a, it) {
+      return a + (Number(it.harga) || 0) * (Number(it.qty) || 1);
+    }, 0);
+    p.subtotal = subtotal;
+    p.ongkos_kurir = ongkir;
+    p.total = subtotal + ongkir;
+    p.dikonfirmasi = true;
+    p.waktu_konfirmasi = new Date().toISOString();
+    tulisDB_(d);
+    return { ok: true, total: p.total, ongkos_kurir: ongkir };
+  } finally {
+    lock.releaseLock();
+  }
+}
 function hapusPesanan_(b) {
   var id = String(b.id || '');
   var lock = LockService.getScriptLock();
@@ -418,7 +452,7 @@ function simpan_(b) {
   var d = bacaDB_();
   if (b.settings && typeof b.settings === 'object') {
     var boleh = ['nama_toko', 'tagline', 'alamat', 'maps_url', 'instagram', 'wa', 'logo',
-      'warna_utama', 'warna_aksen', 'kertas_nota', 'hari_buka', 'printer',
+      'warna_utama', 'warna_aksen', 'kertas_nota', 'hari_buka', 'printer', 'ongkos_kurir',
       'biaya_bulanan', 'karyawan', 'target_laba', 'target_biaya', 'target_hpp', 'susut', 'pajak'];
     boleh.forEach(function (k) {
       if (b.settings[k] !== undefined) d.settings[k] = b.settings[k];

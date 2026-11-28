@@ -36,7 +36,7 @@
       <a href="#lokasi">Lokasi</a>
     </nav>
     <div class="header-actions">
-      <button class="btn-wa-mini" id="btnWaHeader" type="button">Pesan sekarang ↓</button>
+      <button class="btn-wa-mini" id="btnWaHeader" type="button">🍳 Pesan Sekarang</button>
     </div>
   </div>
 </header>
@@ -54,9 +54,10 @@
       </h1>
       <p class="hero-desc">Lumpia renyah, batagor gurih, dan balls yang kejunya meleleh. Semua dibuat segar setiap hari — <b>bikin pagimu terasa lebih spesial.</b></p>
       <div class="hero-cta">
-        <a href="#menu" class="btn-order">Lihat Menu <span class="arrow">→</span></a>
+        <a href="#menu" class="btn-order">Pilih Menu &amp; Pesan <span class="arrow">→</span></a>
         <a href="#tentang" class="btn-ghost">Kenapa kami?</a>
       </div>
+      <p class="hero-cara"><b>Cara pesan:</b> pilih menu → isi nama &amp; no WhatsApp → tekan <b>Kirim via WhatsApp</b>. Tanpa daftar, langsung dibalas kakak kami 🙂</p>
       <div class="hero-mini">
         <span>🥟 Lumpia</span><span>🍢 Batagor</span><span>🧀 Balls</span><span>🥤 Drinks</span>
       </div>
@@ -224,41 +225,43 @@
 
 <!-- ===== BOTTOM ORDER BAR ===== -->
 <div class="order-panel" id="orderPanel" style="display:none">
-  <div class="op-head"><b>Pesananmu</b><button id="opTutup" aria-label="Tutup">✕</button></div>
+  <div class="op-head"><b>📋 Isi Pesananmu</b><button id="opTutup" aria-label="Tutup">✕</button></div>
+  <div class="op-langkah">Ikuti 3 langkah: <b>1</b> isi nama &amp; no WA → <b>2</b> pilih ambil/kurir → <b>3</b> tekan tombol hijau di bawah.</div>
   <div class="op-kirim">
-    <b>Pengiriman</b>
-    <small class="op-langkah">Pilih dulu pengirimannya, lalu pesan ya 🙂</small>
     <div class="op-kirim-pilih">
-      <label><input type="radio" name="kirim" value="ambil" checked> Ambil sendiri</label>
-      <label><input type="radio" name="kirim" value="kurir"> Kurir ke rumah</label>
+      <label><input type="radio" name="kirim" value="ambil" checked> 🏍️ Ambil sendiri</label>
+      <label><input type="radio" name="kirim" value="kurir"> 🚚 Kurir ke rumah</label>
     </div>
-    <label class="op-field">Nama kamu
-      <input class="op-input" id="opNama" placeholder="Nama pemesan" autocomplete="name">
+    <label class="op-field">Nama kamu <span class="op-wajib">WAJIB *</span>
+      <input class="op-input" id="opNama" placeholder="Contoh: Nama kamu" autocomplete="name">
     </label>
-    <label class="op-field">No. HP / WhatsApp
+    <label class="op-field">No. WhatsApp <span class="op-wajib">WAJIB *</span>
       <input class="op-input" id="opHp" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" autocomplete="tel">
     </label>
     <div id="opAmbilWrap">
-      <label class="op-field">Jam ambil di toko
+      <label class="op-field">Jam ambil di toko <span class="op-pilihan">(opsional)</span>
         <select class="op-input" id="opJam"><option value="">Kapan saja hari ini</option></select>
       </label>
-      <small>Pilih jam mau datang. Nanti kami kabari lewat WhatsApp kalau pesanan sudah siap.</small>
+      <small>Nanti kami kabari lewat WhatsApp kalau pesanan sudah siap diambil.</small>
     </div>
     <div id="opAlamatWrap" style="display:none">
-      <label class="op-field">Alamat tujuan lengkap
+      <label class="op-field">Alamat tujuan lengkap <span class="op-wajib">WAJIB *</span>
         <textarea class="op-input" id="opAlamat" rows="2" placeholder="Jalan, nomor rumah, patokan, kecamatan"></textarea>
       </label>
-      <label class="op-field">Catatan untuk kurir (opsional)
+      <label class="op-field">Catatan untuk kurir <span class="op-pilihan">(opsional)</span>
         <input class="op-input" id="opCatatan" placeholder="Mis. titip di depan pintu">
       </label>
-      <small>Ongkir dikonfirmasi lewat WhatsApp ya.</small>
+      <div class="op-ongkir">🚚 Ongkos kurir: <b id="opOngkir">Rp 0</b> — total akhir dikonfirmasi kakak kami lewat WhatsApp.</div>
     </div>
   </div>
+  <div class="op-error" id="opError" hidden></div>
   <div id="opList"></div>
+  <button class="op-kirim-wa" id="opKirim" type="button">📲 KIRIM PESANAN VIA WHATSAPP</button>
+  <small class="op-note">Wajib: nama, no WhatsApp, dan alamat kalau kurir. Pesanan langsung masuk ke WhatsApp kami.</small>
 </div>
 <div class="order-bar" id="orderBar" style="display:none">
   <button class="ob-info" id="obInfo"><b id="obCount">0</b> item • <b id="obTotal">Rp 0</b><span class="ob-caret">▲</span></button>
-  <button class="ob-wa" id="obWa">Pesan via WhatsApp ↗</button>
+  <button class="ob-wa" id="obWa">📲 Kirim via WhatsApp</button>
 </div>
 
 <div class="toast" id="toast"></div>

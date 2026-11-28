@@ -210,6 +210,9 @@ body.drawer-buka { overflow: hidden; }
 .pesanan-table td { vertical-align: top; }
 .pesanan-table .pesanan-item { font-size: .72rem; line-height: 1.5; }
 .pesanan-table .pesanan-item small { display: block; color: var(--muted); }
+.pesanan-table .ongkir-admin { width: 110px; max-width: 100%; margin: 6px 0; padding: 7px 9px; font-size: .75rem; }
+.pesanan-table td { vertical-align: top; }
+.pesanan-table td > .btn { margin-bottom: 4px; }
 .pesanan-baru { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #fff3c4; color: #7a5b00; font-size: .64rem; font-weight: 800; }
 .pesanan-selesai { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e3f7e8; color: #17652c; font-size: .64rem; font-weight: 800; }
 .pesanan-siap { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #fff3cd; color: #8a5a00; font-size: .64rem; font-weight: 800; }

@@ -118,6 +118,8 @@ function trxDariPesanan(d, p) {
     no_nota: String(p.no_pesanan || ('SB-' + String(d.counter_nota).padStart(5, '0'))).slice(0, 40),
     waktu: p.waktu || new Date().toISOString(),
     items,
+    subtotal: Number(p.subtotal) || 0,
+    ongkos_kurir: Number(p.ongkos_kurir) || 0,
     total: Number(p.total) || 0,
     hpp: items.reduce((a, it) => a + Number(it.hpp || 0) * Number(it.qty || 1), 0),
     bayar: Number(p.total) || 0,
@@ -191,7 +193,12 @@ const server = http.createServer(async (req, res) => {
         alamat: String(b.alamat || '').slice(0, 500),
         catatan: String(b.catatan || '').slice(0, 500),
         jam_ambil: String(b.jam_ambil || '').slice(0, 20),
-        items, total: Number(b.total) || 0, status: 'baru', sumber: 'website'
+        items,
+        subtotal: Number(b.subtotal) || 0,
+        ongkos_kurir: Math.max(0, Number(b.ongkos_kurir) || 0),
+        total: Number(b.total) || 0,
+        dikonfirmasi: false,
+        status: 'baru', sumber: 'website'
       };
       d.pesanan.unshift(pesanan);
       if (d.pesanan.length > 300) d.pesanan.length = 300;
@@ -246,6 +253,24 @@ const server = http.createServer(async (req, res) => {
       return json(res, { ok: true });
     } catch (e) { return json(res, { error: e.message }, 400); }
   }
+  if (url === '/api/admin/pesanan/konfirmasi' && req.method === 'POST') {
+    if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
+    try {
+      const b = await body(req);
+      const d = db.get();
+      const p = (d.pesanan || []).find(x => x.id === String(b.id || ''));
+      if (!p) return json(res, { error: 'Pesanan tidak ditemukan' }, 404);
+      const ongkir = Math.max(0, Number(b.ongkos_kurir) || 0);
+      const subtotal = (p.items || []).reduce((a, it) => a + (Number(it.harga) || 0) * (Number(it.qty) || 1), 0);
+      p.subtotal = subtotal;
+      p.ongkos_kurir = ongkir;
+      p.total = subtotal + ongkir;
+      p.dikonfirmasi = true;
+      p.waktu_konfirmasi = new Date().toISOString();
+      db.save();
+      return json(res, { ok: true, total: p.total, ongkos_kurir: ongkir });
+    } catch (e) { return json(res, { error: e.message }, 400); }
+  }
   if (url === '/api/admin/pesanan/status' && req.method === 'POST') {
     if (!isAuth(req)) return json(res, { error: 'Belum login' }, 401);
     try {
@@ -273,7 +298,7 @@ const server = http.createServer(async (req, res) => {
       const d = db.get();
       if (b.settings && typeof b.settings === 'object') {
         for (const key of ['nama_toko', 'tagline', 'alamat', 'maps_url', 'instagram', 'wa', 'logo',
-          'warna_utama', 'warna_aksen', 'kertas_nota', 'hari_buka', 'printer',
+          'warna_utama', 'warna_aksen', 'kertas_nota', 'hari_buka', 'printer', 'ongkos_kurir',
           'biaya_bulanan', 'karyawan', 'target_laba', 'target_biaya', 'target_hpp', 'susut', 'pajak']) {
           if (b.settings[key] !== undefined) d.settings[key] = b.settings[key];
         }

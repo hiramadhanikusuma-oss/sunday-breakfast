@@ -9,6 +9,7 @@
     "warna_utama": "#0533A8",
     "warna_aksen": "#F7E018",
     "kertas_nota": "58mm",
+    "ongkos_kurir": 10000,
     "markup_default": 60,
     "susut": 5,
     "pajak": 0.5,
