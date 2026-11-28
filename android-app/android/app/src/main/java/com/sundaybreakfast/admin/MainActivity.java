@@ -420,8 +420,7 @@ public class MainActivity extends BridgeActivity {
         return writable.isEmpty() ? null : writable.get(0);
     }
 
-    /* Kirim ESC/POS lewat BLE. Mengembalikan hasilHubungkan() agar pola JS tetap sama. */
-    private JSONObject kirimBle(final String mac, String teks, int detikTimeout) {
+    private JSONObject kirimBleBytes(final String mac, byte[] payload, int detikTimeout) {
         final String alamat = mac == null ? "" : mac.trim();
         BluetoothAdapter adapter = adapterBluetooth();
         if (adapter == null) return hasilHubungkan(false, "ERROR: Bluetooth tidak tersedia", alamat, "", BluetoothDevice.BOND_NONE, null);
@@ -441,20 +440,7 @@ public class MainActivity extends BridgeActivity {
         final boolean[] berhasil = {false};
         final String[] pesan = {"ERROR:BLE"};
         final String[] metode = {""};
-
-        String isi = teks == null ? "" : teks;
-        final byte[] data;
-        try {
-            byte[] awal = new byte[]{(byte) 0x1B, 0x40};
-            byte[] isiByte = isi.getBytes("UTF-8");
-            byte[] akhir = new byte[]{0x0A, 0x0A, 0x0A};
-            data = new byte[awal.length + isiByte.length + akhir.length];
-            System.arraycopy(awal, 0, data, 0, awal.length);
-            System.arraycopy(isiByte, 0, data, awal.length, isiByte.length);
-            System.arraycopy(akhir, 0, data, awal.length + isiByte.length, akhir.length);
-        } catch (Exception e) {
-            return hasilHubungkan(false, "ERROR: encoding struk gagal", alamat, nama, BluetoothDevice.BOND_NONE, null);
-        }
+        final byte[] data = payload == null ? new byte[0] : payload;
 
         final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
             private final Runnable[] tulis = new Runnable[1];
@@ -506,8 +492,7 @@ public class MainActivity extends BridgeActivity {
                         if (offset >= data.length) {
                             new Handler(getMainLooper()).postDelayed(() -> {
                                 berhasil[0] = true;
-                                pesan[0] = "OK: " + (isi.isEmpty() ? "terhubung" : "struk terkirim")
-                                        + " via BLE (" + metode[0] + ")";
+                                pesan[0] = "OK: struk terkirim via BLE (" + metode[0] + ")";
                                 latch.countDown();
                             }, 250);
                             return;
@@ -560,7 +545,41 @@ public class MainActivity extends BridgeActivity {
                 berhasil[0] ? metode[0] : null);
     }
 
+    private JSONObject kirimBle(final String mac, String teks, int detikTimeout) {
+        try {
+            String isi = teks == null ? "" : teks;
+            byte[] awal = new byte[]{(byte) 0x1B, 0x40};
+            byte[] isiByte = isi.getBytes("UTF-8");
+            byte[] akhir = new byte[]{0x0A, 0x0A, 0x0A};
+            byte[] payload = new byte[awal.length + isiByte.length + akhir.length];
+            System.arraycopy(awal, 0, payload, 0, awal.length);
+            System.arraycopy(isiByte, 0, payload, awal.length, isiByte.length);
+            System.arraycopy(akhir, 0, payload, awal.length + isiByte.length, akhir.length);
+            return kirimBleBytes(mac, payload, detikTimeout);
+        } catch (Exception e) {
+            String alamat = mac == null ? "" : mac.trim();
+            return hasilHubungkan(false, "ERROR: encoding struk gagal", alamat, "", BluetoothDevice.BOND_NONE, null);
+        }
+    }
+
     private JSONObject cobaKoneksi(String mac, String teks) {
+        try {
+            String isi = teks == null ? "" : teks;
+            byte[] awal = new byte[]{(byte) 0x1B, 0x40};
+            byte[] isiByte = isi.getBytes("UTF-8");
+            byte[] akhir = new byte[]{0x0A, 0x0A, 0x0A};
+            byte[] payload = new byte[awal.length + isiByte.length + akhir.length];
+            System.arraycopy(awal, 0, payload, 0, awal.length);
+            System.arraycopy(isiByte, 0, payload, awal.length, isiByte.length);
+            System.arraycopy(akhir, 0, payload, awal.length + isiByte.length, akhir.length);
+            return cobaKoneksiBytes(mac, payload);
+        } catch (Exception e) {
+            String alamat = mac == null ? "" : mac.trim();
+            return hasilHubungkan(false, "ERROR: encoding struk gagal", alamat, "", BluetoothDevice.BOND_NONE, null);
+        }
+    }
+
+    private JSONObject cobaKoneksiBytes(String mac, byte[] data) {
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         String alamat = mac == null ? "" : mac.trim();
         if (adapter == null) return hasilHubungkan(false, "ERROR: Bluetooth tidak tersedia di HP ini", alamat, "", BluetoothDevice.BOND_NONE, null);
@@ -608,14 +627,11 @@ public class MainActivity extends BridgeActivity {
                 }
                 socket.connect();
                 out = socket.getOutputStream();
-                out.write(new byte[]{0x1B, 0x40}); // reset printer
-                out.write((teks == null ? "" : teks).getBytes("UTF-8"));
-                out.write(new byte[]{0x0A, 0x0A, 0x0A});
+                out.write(data == null ? new byte[0] : data);
                 out.flush();
-                try { Thread.sleep(120); } catch (InterruptedException ignored) {}
+                try { Thread.sleep(180); } catch (InterruptedException ignored) {}
                 return hasilHubungkan(true,
-                        "OK: " + (teks == null || teks.isEmpty() ? "terhubung" : "struk terkirim") +
-                                " via " + metode[percobaan] + " (bond: " + statusBond(state) + ")",
+                        "OK: struk terkirim via " + metode[percobaan] + " (bond: " + statusBond(state) + ")",
                         alamat, nama, state, metode[percobaan]);
             } catch (SecurityException e) {
                 return hasilHubungkan(false,
@@ -853,9 +869,15 @@ public class MainActivity extends BridgeActivity {
             try {
                 if (!originDiizinkan()) return "ERROR: halaman tidak diizinkan";
                 boolean sudah = izinBluetooth();
+                BluetoothAdapter a = adapterBluetooth();
+                if (a != null && !a.isEnabled()) {
+                    try {
+                        startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception ignored) {}
+                }
                 if (!sudah) mintaIzinBluetoothJikaPerlu();
                 return sudah ? "OK: izin Bluetooth sudah diberikan"
-                        : "OK: permintaan izin ditampilkan. Izinkan di HP, lalu tekan Cari & Hubungkan lagi.";
+                        : "OK: permintaan izin/Bluetooth ditampilkan. Izinkan di HP, lalu tekan Cari & Hubungkan lagi.";
             } catch (Throwable e) {
                 String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
                 return "ERROR: gagal meminta izin Bluetooth (" + pesan + ")";
@@ -1062,6 +1084,22 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public String nyalakanBluetooth() {
+            try {
+                if (!originDiizinkan()) return "ERROR: halaman tidak diizinkan";
+                BluetoothAdapter a = adapterBluetooth();
+                if (a == null) return "ERROR: Bluetooth tidak tersedia";
+                if (a.isEnabled()) return "OK: Bluetooth sudah aktif";
+                Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                return "OK: permintaan menyalakan Bluetooth ditampilkan";
+            } catch (Throwable e) {
+                return "ERROR: gagal menyalakan Bluetooth (" + e.getMessage() + ")";
+            }
+        }
+
+        @JavascriptInterface
         public void bukaSetelanAplikasi() {
             if (!originDiizinkan()) return;
             try {
@@ -1073,6 +1111,17 @@ public class MainActivity extends BridgeActivity {
         }
 
         /* Async supaya WebView tidak macet saat socket connect. */
+        private String kirimBytesKePrinter(String mac, byte[] data) {
+            JSONObject ble = kirimBleBytes(mac, data, 10);
+            if (ble.optBoolean("ok", false)) return ble.optString("pesan");
+            JSONObject spp = cobaKoneksiBytes(mac, data);
+            if (spp.optBoolean("ok", false)) {
+                modePrinterTerakhir = "SPP";
+                return spp.optString("pesan");
+            }
+            return spp.optString("pesan") + " | BLE: " + ble.optString("pesan");
+        }
+
         @JavascriptInterface
         public void printText(String mac, String teks, String callback) {
             final String cb = namaCallback(callback);
@@ -1088,6 +1137,36 @@ public class MainActivity extends BridgeActivity {
                     try {
                         o.put("ok", hasil.startsWith("OK"));
                         o.put("pesan", hasil);
+                    } catch (Exception ignored) {}
+                    kirimKeJS(cb, o);
+                });
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void printBase64(String mac, String base64, String callback) {
+            final String cb = namaCallback(callback);
+            final String alamat = mac == null ? "" : mac;
+            final String b64 = base64 == null ? "" : base64;
+            new Thread(() -> {
+                String hasil;
+                try {
+                    if (!originDiizinkan() || !izinBluetooth()) {
+                        hasil = "ERROR: izin/halaman Bluetooth belum siap";
+                    } else {
+                        byte[] data = android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
+                        hasil = kirimBytesKePrinter(alamat, data);
+                    }
+                } catch (Throwable e) {
+                    hasil = "ERROR: " + e.getMessage();
+                }
+                final String akhir = hasil;
+                runOnUiThread(() -> {
+                    if (cb.isEmpty()) return;
+                    JSONObject o = new JSONObject();
+                    try {
+                        o.put("ok", akhir.startsWith("OK"));
+                        o.put("pesan", akhir);
                     } catch (Exception ignored) {}
                     kirimKeJS(cb, o);
                 });

@@ -1306,7 +1306,7 @@ function setBtStatus(pesan, gagal) {
   el.className = 'bt-status' + (gagal ? ' gagal' : '');
   el.textContent = pesan;
 }
-function kirimBluetooth(teks) {
+function kirimBluetooth(teks, base64) {
   return new Promise((resolve, reject) => {
     const bridge = btBridge();
     if (!bridge) return reject(new Error('Cetak Bluetooth hanya tersedia di APK Sunday Admin'));
@@ -1314,17 +1314,26 @@ function kirimBluetooth(teks) {
     if (!mac) return reject(new Error('Pilih printer Bluetooth di Pengaturan dulu'));
     try { if (bridge.mintaIzinBluetooth) bridge.mintaIzinBluetooth(); } catch (e) {}
     const cb = 'sundayBtCb' + Math.random().toString(36).slice(2);
-    const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons')); }, 15000);
+    const to = setTimeout(() => { bersihkan(); reject(new Error('Printer tidak merespons')); }, 20000);
     function bersihkan() { clearTimeout(to); try { delete window[cb]; } catch (e) { window[cb] = undefined; } }
     window[cb] = res => { bersihkan(); resolve(res || { ok:false, pesan:'Tidak ada respons printer' }); };
-    try { bridge.printText(mac, teks, cb); }
-    catch (e) { bersihkan(); reject(e); }
+    try {
+      if (base64 && bridge.printBase64) bridge.printBase64(mac, base64, cb);
+      else bridge.printText(mac, teks, cb);
+    } catch (e) { bersihkan(); reject(e); }
   });
 }
-function cetakBluetooth(trx) {
-  kirimBluetooth(strukLines(trx).join('\n') + '\n')
-    .then(r => { setBtStatus(r.pesan, !r.ok); toast(r.ok ? '✓ ' + r.pesan : r.pesan); })
-    .catch(e => { setBtStatus(e.message || String(e), true); toast(e.message); });
+async function cetakBluetooth(trx) {
+  setBtStatus('Menyiapkan struk + logo...', false);
+  try {
+    const base64 = await strukEscPosBase64(trx);
+    const r = await kirimBluetooth(strukLines(trx).join('\n') + '\n', base64);
+    setBtStatus(r.pesan, !r.ok);
+    toast(r.ok ? '✓ ' + r.pesan : r.pesan);
+  } catch (e) {
+    setBtStatus(e.message || String(e), true);
+    toast(e.message || String(e));
+  }
 }
 let daftarPrinterBT = [];
 function macTersimpan() { return ((DB.settings.printer || {}).mac || '').trim(); }
@@ -1364,6 +1373,77 @@ function renderDaftarPrinterBT(daftar) {
 }
 function teksTestBT() {
   return 'SUNDAY BREAKFAST\nTEST KONEKSI\n' + new Date().toLocaleString('id-ID') + '\n';
+}
+
+function bytesToBase64(bytes) {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+function muatGambarStruk(src) {
+  return new Promise(resolve => {
+    if (!src) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+    setTimeout(() => resolve(null), 3500);
+  });
+}
+
+async function logoRasterEscPos(src, lebarKertas) {
+  const img = await muatGambarStruk(src);
+  if (!img) return new Uint8Array(0);
+  const maxDot = lebarKertas === 80 ? 576 : lebarKertas === 48 ? 384 : 384;
+  const targetW = Math.min(maxDot, Math.max(120, Math.round(maxDot * 0.62)));
+  const scale = targetW / (img.naturalWidth || img.width || targetW);
+  const w = Math.max(8, Math.floor(targetW / 8) * 8);
+  const h = Math.max(1, Math.round((img.naturalHeight || img.height || w) * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const xBytes = Math.ceil(w / 8);
+  const raster = new Uint8Array(xBytes * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const lum = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
+      const alpha = data[i + 3];
+      if (alpha > 20 && lum < 160) raster[(y * xBytes) + Math.floor(x / 8)] |= (0x80 >> (x % 8));
+    }
+  }
+  const header = [0x1D, 0x76, 0x30, 0x00, xBytes & 0xFF, (xBytes >> 8) & 0xFF, h & 0xFF, (h >> 8) & 0xFF];
+  const out = new Uint8Array(header.length + raster.length + 3);
+  out.set(header, 0);
+  out.set(raster, header.length);
+  out.set([0x1B, 0x61, 0x00], header.length + raster.length); // left align after logo
+  return out;
+}
+
+async function strukEscPosBase64(trx) {
+  const p = DB.settings.printer || {};
+  const teks = strukLines(trx).join('\n') + '\n';
+  const enc = new TextEncoder();
+  const textBytes = enc.encode(teks);
+  const logo = await logoRasterEscPos(p.logo || '/assets/logo-icon.png', lebarKertas());
+  const init = [0x1B, 0x40, 0x1B, 0x61, 0x01]; // init + center
+  const afterLogo = logo.length ? [0x0A] : [];
+  const feed = [0x0A, 0x0A, 0x0A, 0x1D, 0x56, 0x00]; // feed + full cut/partial
+  const out = new Uint8Array(init.length + logo.length + afterLogo.length + textBytes.length + feed.length);
+  let o = 0;
+  out.set(init, o); o += init.length;
+  if (logo.length) { out.set(logo, o); o += logo.length; out.set(afterLogo, o); o += afterLogo.length; }
+  out.set(textBytes, o); o += textBytes.length;
+  out.set(feed, o);
+  return bytesToBase64(out);
 }
 function hubungkanPrinterBT(mac) {
   return new Promise((resolve, reject) => {
@@ -1513,6 +1593,15 @@ if ($('#btnIzinBT')) $('#btnIzinBT').onclick = () => {
     renderPrinter();
   } catch (e) { setBtStatus('Gagal minta izin Bluetooth: ' + (e.message || e), true); }
 };
+if ($('#btnNyalakanBT')) $('#btnNyalakanBT').onclick = () => {
+  const bridge = btBridge();
+  if (!bridge) return setBtStatus('Nyalakan Bluetooth hanya tersedia di APK Sunday Admin.', true);
+  try {
+    const r = bridge.nyalakanBluetooth ? bridge.nyalakanBluetooth() : 'Buka Setelan Bluetooth';
+    setBtStatus(String(r), String(r).indexOf('ERROR') === 0);
+    toast(String(r));
+  } catch (e) { setBtStatus(e.message || String(e), true); }
+};
 if ($('#btnPairBT')) $('#btnPairBT').onclick = async () => {
   const mac = macPrinter();
   if (!mac) return toast('Pilih printer dulu ya (Cari Printer Baru)');
@@ -1569,9 +1658,14 @@ $('#simpanPrinter').onclick = async () => {
   try { await post('/api/admin/save',{settings:{printer:p}}); DB.settings.printer=p; toast('✓ Pengaturan struk tersimpan'); renderPrinter(); }
   catch(e){ toast(e.message); }
 };
+function lebarKertas() {
+  const v = Number((DB.settings.printer || {}).lebar || 58);
+  return [48, 58, 80].indexOf(v) >= 0 ? v : 58;
+}
+function lebarChar() { return lebarKertas() === 80 ? 42 : lebarKertas() === 48 ? 24 : 32; }
 function strukLines(trx) {
   const p = DB.settings.printer || {}, s = DB.settings;
-  const w = Number(p.lebar) === 80 ? 42 : 32;
+  const w = lebarChar();
   const L = [];
   const tengah = t => L.push(t.padStart(Math.floor((w-t.length)/2)+t.length).slice(0,w));
   const garis = c => L.push(String(c).repeat(w));
@@ -1604,7 +1698,8 @@ function receiptHtml(trx) {
   const logo = p.logo || '/assets/logo-icon.png';
   const header = p.header || s.nama_toko || 'SUNDAY BREAKFAST';
   const footer = p.footer || 'Terima kasih!';
-  return '<div class="receipt' + (Number(p.lebar) === 80 ? ' lebar-80' : '') + '">' +
+  const cls = lebarKertas() === 80 ? ' lebar-80' : lebarKertas() === 48 ? ' lebar-48' : '';
+  return '<div class="receipt' + cls + '">' +
     '<div class="receipt-head"><img src="'+esc(logo)+'" alt="Sunday"><b>'+esc(header)+'</b>' +
     '<small>'+esc(s.tagline||'')+'</small><small>'+esc(s.alamat||'')+'</small></div>' +
     '<div class="receipt-line"></div>' +

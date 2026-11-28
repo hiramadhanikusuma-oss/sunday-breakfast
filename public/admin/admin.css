@@ -339,6 +339,8 @@ body.drawer-buka { overflow: hidden; }
   #receiptPrint { display: block !important; margin: 0; padding: 0; }
   @page { size: 58mm auto; margin: 0; }
   .receipt { width: 48mm; margin: 0 auto; }
+  .receipt.lebar-48 { width: 38mm; font-size: 8px; }
+  .receipt.lebar-48 .receipt-head img { width: 24mm; }
   .receipt.lebar-80 { width: 70mm; }
   .receipt.lebar-80 .receipt-head img { width: 42mm; }
 }

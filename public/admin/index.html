@@ -383,6 +383,7 @@
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button type="button" class="btn btn-accent btn-sm" id="btnHubungkanBT">🔍 Cari &amp; Hubungkan Printer</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnIzinBT">Izinkan BT</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnNyalakanBT">Nyalakan BT</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnCariPrinter">Cari saja</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnPairBT">Pasang manual</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btnBukaBluetooth">Setelan BT</button>
@@ -396,7 +397,7 @@
               <small style="color:var(--muted);margin-top:8px;display:block" id="btPrinterHint">Nyalakan printer → tekan <b>Cari &amp; Hubungkan Printer</b> → pilih printer dari daftar. Aplikasi akan memasangkan, menghubungkan, dan mencoba cetak otomatis. PIN RPP02N biasanya <code>0000</code> atau <code>1234</code>.</small>
               <div class="bt-status" id="btStatus" hidden></div>
             </div>
-            <label class="field"><span>Lebar Kertas</span><select class="select" id="printerLebar"><option value="58">58 mm</option><option value="80">80 mm</option></select></label>
+            <label class="field"><span>Lebar Kertas</span><select class="select" id="printerLebar"><option value="48">48 mm (58mm sempit)</option><option value="58">58 mm</option><option value="80">80 mm</option></select></label>
             <label class="field"><span>Logo Header</span><input class="input" id="printerLogo" placeholder="/assets/logo-icon.png"></label>
             <label class="field full"><span>Teks Header</span><input class="input" id="printerHeader" placeholder="SUNDAY BREAKFAST — Mataram, NTB"></label>
             <label class="field full check-row"><input type="checkbox" id="printerAuto" checked> Cetak otomatis setelah pembayaran</label>
