@@ -40,7 +40,7 @@ Admin yang bisa dibuka dari mana saja memakai Google Apps Script Web App dengan 
 URL Web App produksi:
 
 ```
-https://script.google.com/macros/s/AKfycbyrdWNFEiU5OyBv98y8aRAHUH684jkbuvWhetX4Bm3nSWEm4NGA1l_m2PlEwvHRni2D/exec
+https://script.google.com/macros/s/AKfycbz8zEaaXOhpM0UaZ1kQZbNtBOoqvsvHqflYQiptNzdA8MFbZCNmf1ESw_oW11_PvBmQ/exec
 ```
 
 - Login dengan PIN `800008` (bisa diganti di Pengaturan). Input PIN memakai keyboard teks/angka, jadi PIN apa pun bisa diketik di HP.
@@ -48,6 +48,7 @@ https://script.google.com/macros/s/AKfycbyrdWNFEiU5OyBv98y8aRAHUH684jkbuvWhetX4B
 - Data tersimpan di Spreadsheet "Sunday Breakfast — Database" di akun Google `hi.ramadhanikusuma@gmail.com`. ID spreadsheet disimpan di Script Properties `sunday_sheet_id`.
 - Laporan CSV bisa diekspor dan/atau disimpan otomatis ke Google Drive folder "Sunday Breakfast — Laporan".
 - Website pelanggan kini memakai form pemesanan: pilih **Ambil sendiri** atau **Kurir ke rumah**, isi nama, no HP/WhatsApp, alamat, dan catatan. Setelah dikirim, pesanan masuk ke WhatsApp penjual **dan** ke menu **Pesanan Masuk** di admin/APK.
+- Saat pesanan ditandai **✓ Selesai**, struk otomatis dibuat di **History** dengan nomor pesanan yang sama, stok berkurang, dan HPP ikut tercatat di **Insight**. Membuka lagi pesanan akan menghapus struk itu dan mengembalikan stok bila belum refund.
 - Admin/APK mendapat notifikasi Android + badge untuk pesanan baru. APK melakukan polling tiap 5 menit walau aplikasi tertutup (izinkan **Notifikasi** saat diminta).
 - Menu **Receipt** diganti **History**, menu **Laporan** diganti **Insight**.
 

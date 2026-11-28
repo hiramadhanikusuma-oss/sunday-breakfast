@@ -86,6 +86,68 @@ function kembalikanStok(d, trx) {
     }
   }
 }
+function kurangiStok(d, trx) {
+  const kurangi = (menuId, jumlah) => {
+    const m = d.menu.find(x => x.id === menuId);
+    if (!m || m.stok === null || m.stok === undefined) return;
+    m.stok = Math.max(0, Number(m.stok) - Number(jumlah));
+    if (m.stok === 0) m.habis = true;
+  };
+  for (const it of (trx.items || [])) {
+    kurangi(it.menu_id, it.qty);
+    if (it.pilihan && typeof it.pilihan === 'object') {
+      for (const [id, jumlah] of Object.entries(it.pilihan)) kurangi(id, Number(jumlah) * Number(it.qty));
+    }
+  }
+}
+function trxDariPesanan(d, p) {
+  d.counter_nota = (Number(d.counter_nota) || 0) + 1;
+  const items = (p.items || []).map(it => ({
+    menu_id: String(it.menu_id || ''),
+    nama: String(it.nama || '').slice(0, 120),
+    qty: Math.max(1, Number(it.qty) || 1),
+    harga: Number(it.harga) || 0,
+    mix: String(it.mix || '').slice(0, 240),
+    pilihan: (it.pilihan && typeof it.pilihan === 'object') ? it.pilihan : null,
+    hpp: (it.hpp !== undefined && it.hpp !== null)
+      ? Number(it.hpp)
+      : hppOf(d.menu.find(m => m.id === it.menu_id) || {})
+  }));
+  const trx = {
+    id: 'trx_ps_' + String(p.id || Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50),
+    no_nota: String(p.no_pesanan || ('SB-' + String(d.counter_nota).padStart(5, '0'))).slice(0, 40),
+    waktu: p.waktu || new Date().toISOString(),
+    items,
+    total: Number(p.total) || 0,
+    hpp: items.reduce((a, it) => a + Number(it.hpp || 0) * Number(it.qty || 1), 0),
+    bayar: Number(p.total) || 0,
+    kembalian: 0,
+    metode: 'Cash',
+    kasir: 'Pesanan: ' + (p.nama || '-'),
+    sumber: 'pesanan',
+    no_pesanan: p.no_pesanan || '',
+    pelanggan: p.nama || '',
+    hp: p.hp || '',
+    metode_kirim: p.metode || 'ambil',
+    alamat: p.alamat || '',
+    catatan: p.catatan || '',
+    refunded: false
+  };
+  d.transaksi.unshift(trx);
+  kurangiStok(d, trx);
+  p.trx_id = trx.id;
+  return trx;
+}
+function hapusTrxDariPesanan(d, p) {
+  if (!p.trx_id) return false;
+  const i = d.transaksi.findIndex(x => x.id === p.trx_id);
+  delete p.trx_id;
+  if (i < 0) return false;
+  const trx = d.transaksi[i];
+  if (!trx.refunded) kembalikanStok(d, trx);
+  d.transaksi.splice(i, 1);
+  return true;
+}
 function sendFile(res, filePath) {
   fs.readFile(filePath, (err, data) => {
     if (err) { res.statusCode = 404; res.end('Not found'); return; }
@@ -190,9 +252,16 @@ const server = http.createServer(async (req, res) => {
       const status = b.status === 'selesai' ? 'selesai' : 'baru';
       const p = (d.pesanan || []).find(x => x.id === String(b.id || ''));
       if (!p) return json(res, { error: 'Pesanan tidak ditemukan' }, 404);
+      let masukHistory = false;
+      if (status === 'selesai') {
+        const sudah = p.trx_id && d.transaksi.some(x => x.id === p.trx_id);
+        if (!sudah) { trxDariPesanan(d, p); masukHistory = true; }
+      } else {
+        hapusTrxDariPesanan(d, p);
+      }
       p.status = status;
       db.save();
-      return json(res, { ok: true });
+      return json(res, { ok: true, masuk_history: masukHistory, trx_id: p.trx_id || '' });
     } catch (e) { return json(res, { error: e.message }, 400); }
   }
   if (url === '/api/admin/save' && req.method === 'POST') {
@@ -266,21 +335,7 @@ const server = http.createServer(async (req, res) => {
         refunded: false
       };
       d.transaksi.unshift(trx);
-      // kurangi stok kalau stok memang dipantau
-      const kurangi = (menuId, jumlah) => {
-        const m = d.menu.find(x => x.id === menuId);
-        if (!m || m.stok === null || m.stok === undefined) return;
-        m.stok = Math.max(0, Number(m.stok) - Number(jumlah));
-        if (m.stok === 0) m.habis = true;
-      };
-      for (const it of trx.items) {
-        kurangi(it.menu_id, it.qty);
-        if (it.pilihan && typeof it.pilihan === 'object') {
-          for (const [id, jumlah] of Object.entries(it.pilihan)) {
-            kurangi(id, Number(jumlah) * Number(it.qty));
-          }
-        }
-      }
+      kurangiStok(d, trx);
       db.save();
       return json(res, { ok: true, transaksi: trx });
     } catch (e) { return json(res, { error: e.message }, 400); }

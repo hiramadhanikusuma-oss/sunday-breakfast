@@ -182,6 +182,22 @@ function kembalikanStok_(d, trx) {
     }
   });
 }
+function kurangiStok_(d, trx) {
+  function kurangi(id, jumlah) {
+    var m = (d.menu || []).find(function (x) { return x.id === id; });
+    if (!m || m.stok === null || m.stok === undefined) return;
+    m.stok = Math.max(0, Number(m.stok) - Number(jumlah));
+    if (m.stok === 0) m.habis = true;
+  }
+  (trx.items || []).forEach(function (it) {
+    kurangi(it.menu_id, it.qty);
+    if (it.pilihan && typeof it.pilihan === 'object') {
+      Object.keys(it.pilihan).forEach(function (id) {
+        kurangi(id, Number(it.pilihan[id]) * Number(it.qty));
+      });
+    }
+  });
+}
 
 /* ---------- DATABASE DI GOOGLE SHEET ---------- */
 function initDb_() {
@@ -305,6 +321,57 @@ function terimaPesanan_(b) {
     lock.releaseLock();
   }
 }
+function trxDariPesanan_(d, p) {
+  d.counter_nota = (Number(d.counter_nota) || 0) + 1;
+  var items = (p.items || []).map(function (it) {
+    var menu = (d.menu || []).find(function (m) { return m.id === it.menu_id; });
+    return {
+      menu_id: String(it.menu_id || ''),
+      nama: String(it.nama || '').slice(0, 120),
+      qty: Math.max(1, Number(it.qty) || 1),
+      harga: Number(it.harga) || 0,
+      mix: String(it.mix || '').slice(0, 240),
+      pilihan: (it.pilihan && typeof it.pilihan === 'object') ? it.pilihan : null,
+      hpp: (it.hpp !== undefined && it.hpp !== null) ? Number(it.hpp) : hppOf_(menu || {})
+    };
+  });
+  var trx = {
+    id: 'trx_ps_' + String(p.id || Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50),
+    no_nota: String(p.no_pesanan || ('SB-' + String(d.counter_nota).padStart(5, '0'))).slice(0, 40),
+    waktu: p.waktu || new Date().toISOString(),
+    items: items,
+    total: Number(p.total) || 0,
+    hpp: items.reduce(function (a, it) { return a + Number(it.hpp || 0) * Number(it.qty || 1); }, 0),
+    bayar: Number(p.total) || 0,
+    kembalian: 0,
+    metode: 'Cash',
+    kasir: 'Pesanan: ' + (p.nama || '-'),
+    sumber: 'pesanan',
+    no_pesanan: p.no_pesanan || '',
+    pelanggan: p.nama || '',
+    hp: p.hp || '',
+    metode_kirim: p.metode || 'ambil',
+    alamat: p.alamat || '',
+    catatan: p.catatan || '',
+    refunded: false
+  };
+  if (!Array.isArray(d.transaksi)) d.transaksi = [];
+  d.transaksi.unshift(trx);
+  kurangiStok_(d, trx);
+  p.trx_id = trx.id;
+  return trx;
+}
+function hapusTrxDariPesanan_(d, p) {
+  var id = p.trx_id;
+  if (!id) return false;
+  var i = (d.transaksi || []).findIndex(function (x) { return x.id === id; });
+  delete p.trx_id;
+  if (i < 0) return false;
+  var trx = d.transaksi[i];
+  if (!trx.refunded) kembalikanStok_(d, trx);
+  d.transaksi.splice(i, 1);
+  return true;
+}
 function statusPesanan_(b) {
   var id = String(b.id || '');
   var status = b.status === 'selesai' ? 'selesai' : 'baru';
@@ -312,13 +379,18 @@ function statusPesanan_(b) {
   try { lock.waitLock(8000); } catch (e) { return { error: 'Pesanan sedang diproses' }; }
   try {
     var d = bacaDB_();
-    var ketemu = false;
-    (d.pesanan || []).forEach(function (p) {
-      if (p.id === id) { p.status = status; ketemu = true; }
-    });
-    if (!ketemu) return { error: 'Pesanan tidak ditemukan' };
+    var p = (d.pesanan || []).find(function (x) { return x.id === id; });
+    if (!p) return { error: 'Pesanan tidak ditemukan' };
+    var pindah = false;
+    if (status === 'selesai') {
+      var sudah = p.trx_id && (d.transaksi || []).some(function (x) { return x.id === p.trx_id; });
+      if (!sudah) { trxDariPesanan_(d, p); pindah = true; }
+    } else {
+      hapusTrxDariPesanan_(d, p);
+    }
+    p.status = status;
     tulisDB_(d);
-    return { ok: true };
+    return { ok: true, masuk_history: pindah, trx_id: p.trx_id || '' };
   } finally {
     lock.releaseLock();
   }
@@ -395,20 +467,7 @@ function transaksi_(b) {
     refunded: false
   };
   d.transaksi.unshift(trx);
-  function kurangi(id, jumlah) {
-    var m = (d.menu || []).find(function (x) { return x.id === id; });
-    if (!m || m.stok === null || m.stok === undefined) return;
-    m.stok = Math.max(0, Number(m.stok) - Number(jumlah));
-    if (m.stok === 0) m.habis = true;
-  }
-  trx.items.forEach(function (it) {
-    kurangi(it.menu_id, it.qty);
-    if (it.pilihan && typeof it.pilihan === 'object') {
-      Object.keys(it.pilihan).forEach(function (id) {
-        kurangi(id, Number(it.pilihan[id]) * Number(it.qty));
-      });
-    }
-  });
+  kurangiStok_(d, trx);
   tulisDB_(d);
   return { ok: true, transaksi: trx };
 }

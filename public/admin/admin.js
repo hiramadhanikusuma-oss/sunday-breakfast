@@ -965,13 +965,15 @@ function renderPesanan() {
     ).join('<br>');
     const hp = String(p.hp || '').replace(/[^0-9]/g, '');
     const wa = hp ? 'https://wa.me/' + (hp.startsWith('0') ? '62' + hp.slice(1) : hp) : '';
+    const trxHistory = p.trx_id && (DB.transaksi || []).find(x => x.id === p.trx_id);
     return '<tr><td><b>' + esc(p.no_pesanan) + '</b></td>' +
       '<td>' + new Date(p.waktu).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'}) + '</td>' +
       '<td><b>' + esc(p.nama || '-') + '</b><br><small>' + esc(p.hp || '-') + '</small></td>' +
       '<td>' + (p.metode === 'kurir' ? '🚚 Kurir<br><small>' + esc(p.alamat || '-') + (p.catatan ? '<br>' + esc(p.catatan) : '') + '</small>' : '🏍️ Ambil sendiri') + '</td>' +
       '<td class="pesanan-item">' + itemHtml + '</td>' +
       '<td><b>' + rp(p.total) + '</b></td>' +
-      '<td><span class="' + (selesai ? 'pesanan-selesai' : 'pesanan-baru') + '">' + (selesai ? 'Selesai' : 'Baru') + '</span></td>' +
+      '<td><span class="' + (selesai ? 'pesanan-selesai' : 'pesanan-baru') + '">' + (selesai ? 'Selesai' : 'Baru') + '</span>' +
+      (trxHistory ? '<br><small>History: <b>' + esc(trxHistory.no_nota) + '</b></small>' : '') + '</td>' +
       '<td><button class="btn btn-ghost btn-sm" data-lihat-ps="' + esc(p.id) + '">Lihat</button> ' +
       (wa ? '<a class="btn btn-ghost btn-sm" href="' + wa + '" target="_blank" rel="noopener">WA</a> ' : '') +
       '<button class="btn btn-sm" data-status-ps="' + esc(p.id) + '" data-status="' + (selesai ? 'baru' : 'selesai') + '">' + (selesai ? 'Buka lagi' : '✓ Selesai') + '</button> ' +
@@ -1000,9 +1002,12 @@ async function cekPesananBaru(awal) {
 }
 async function ubahStatusPesanan(id, status) {
   try {
-    await post('/api/admin/pesanan/status', { id, status });
-    await cekPesananBaru(true);
-    toast(status === 'selesai' ? '✓ Pesanan selesai' : 'Pesanan dibuka lagi');
+    const r = await post('/api/admin/pesanan/status', { id, status });
+    DB = await api('/api/admin/data');
+    renderAll();
+    toast(status === 'selesai'
+      ? (r.masuk_history ? '✓ Pesanan selesai & masuk History' : '✓ Pesanan selesai')
+      : 'Pesanan dibuka lagi, struk dihapus dari History');
   } catch (e) { toast(e.message); }
 }
 async function hapusPesananAdmin(id) {
