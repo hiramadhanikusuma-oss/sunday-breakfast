@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
@@ -67,6 +68,12 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         WebView web = getBridge().getWebView();
+        try {
+            WebSettings st = web.getSettings();
+            st.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+            st.setDomStorageEnabled(true);
+            st.setDatabaseEnabled(true);
+        } catch (Exception ignored) {}
         web.addJavascriptInterface(new PrinterBridge(), "SundayPrinter");
         web.addJavascriptInterface(new NotifBridge(), "SundayNotify");
         mintaIzinBluetoothJikaPerlu();
@@ -621,7 +628,17 @@ public class MainActivity extends BridgeActivity {
         return spp.optString("pesan") + " | BLE: " + ble.optString("pesan");
     }
 
-    /* Satu tombol: mulai pairing bila perlu, lalu buka socket SPP untuk membuktikan koneksi. */
+    private boolean perangkatBleDitemukan(String mac) {
+        if (mac == null) return false;
+        for (int i = 0; i < daftarBleTerakhir.length(); i++) {
+            try {
+                if (mac.equalsIgnoreCase(daftarBleTerakhir.getJSONObject(i).optString("mac"))) return true;
+            } catch (Exception ignored) {}
+        }
+        return false;
+    }
+
+    /* Satu tombol: coba BLE dulu; pairing klasik hanya bila perlu. */
     private void hubungkanProses(final BluetoothAdapter adapter, final String alamat, final String cb) {
         BluetoothDevice device;
         try {
@@ -636,7 +653,8 @@ public class MainActivity extends BridgeActivity {
         final String uji = "\nSUNDAY BREAKFAST\nTEST KONEKSI\n" + nama + "\n" + alamat + "\n";
 
         /* Coba BLE dulu: printer dual-mode tidak perlu pairing klasik. */
-        JSONObject ble = kirimBle(alamat, uji, 9);
+        final boolean bleTerlihat = perangkatBleDitemukan(alamat);
+        JSONObject ble = kirimBle(alamat, uji, bleTerlihat ? 8 : 5);
         if (ble.optBoolean("ok", false)) {
             try {
                 ble.put("pesan", ble.optString("pesan") + " (tanpa pairing klasik)");
@@ -652,7 +670,9 @@ public class MainActivity extends BridgeActivity {
         final int[] bondState = { device.getBondState() };
         final String[] bondPesan = { bondOk[0] ? "OK: printer sudah terpasang" : "" };
 
-        if (!bondOk[0]) {
+        if (!bondOk[0] && bleTerlihat) {
+            bondPesan[0] = "WARN: perangkat BLE terdeteksi, pairing klasik dilewati";
+        } else if (!bondOk[0]) {
             runOnUiThread(() -> {
                 tungguBond(alamat, (ok, pesan, state) -> {
                     bondOk[0] = ok;
@@ -671,7 +691,7 @@ public class MainActivity extends BridgeActivity {
                 }
             });
             try {
-                if (!latch.await(15, TimeUnit.SECONDS)) {
+                if (!latch.await(10, TimeUnit.SECONDS)) {
                     hentikanReceiverHubungkan();
                     bondOk[0] = false;
                     bondPesan[0] = "WARN: pairing timeout, mencoba koneksi langsung";
@@ -824,30 +844,36 @@ public class MainActivity extends BridgeActivity {
             final String alamat = mac == null ? "" : mac.trim();
             try {
                 runOnUiThread(() -> {
-                    if (!originDiizinkan()) {
-                        kirimKeJS(cb, hasilHubungkan(false, "ERROR: halaman tidak diizinkan",
+                    try {
+                        if (!originDiizinkan()) {
+                            kirimKeJS(cb, hasilHubungkan(false, "ERROR: halaman tidak diizinkan",
+                                    alamat, "", BluetoothDevice.BOND_NONE, null));
+                            return;
+                        }
+                        if (!izinBluetooth()) {
+                            mintaIzinBluetoothJikaPerlu();
+                            kirimKeJS(cb, hasilHubungkan(false,
+                                    "ERROR: izin Nearby devices/Bluetooth belum diberikan. Izinkan lalu tekan lagi.",
+                                    alamat, "", BluetoothDevice.BOND_NONE, null));
+                            return;
+                        }
+                        BluetoothAdapter adapter = adapterBluetooth();
+                        if (adapter == null || !adapter.isEnabled()) {
+                            kirimKeJS(cb, hasilHubungkan(false, "ERROR: Bluetooth masih mati. Nyalakan dulu ya",
+                                    alamat, "", BluetoothDevice.BOND_NONE, null));
+                            return;
+                        }
+                        if (alamat.isEmpty()) {
+                            kirimKeJS(cb, hasilHubungkan(false, "ERROR: pilih printer dulu ya",
+                                    alamat, "", BluetoothDevice.BOND_NONE, null));
+                            return;
+                        }
+                        new Thread(() -> hubungkanProses(adapter, alamat, cb)).start();
+                    } catch (Throwable e) {
+                        String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                        kirimKeJS(cb, hasilHubungkan(false, "ERROR: gagal memulai koneksi (" + pesan + ")",
                                 alamat, "", BluetoothDevice.BOND_NONE, null));
-                        return;
                     }
-                    if (!izinBluetooth()) {
-                        mintaIzinBluetoothJikaPerlu();
-                        kirimKeJS(cb, hasilHubungkan(false,
-                                "ERROR: izin Nearby devices/Bluetooth belum diberikan. Izinkan lalu tekan lagi.",
-                                alamat, "", BluetoothDevice.BOND_NONE, null));
-                        return;
-                    }
-                    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-                    if (adapter == null || !adapter.isEnabled()) {
-                        kirimKeJS(cb, hasilHubungkan(false, "ERROR: Bluetooth masih mati. Nyalakan dulu ya",
-                                alamat, "", BluetoothDevice.BOND_NONE, null));
-                        return;
-                    }
-                    if (alamat.isEmpty()) {
-                        kirimKeJS(cb, hasilHubungkan(false, "ERROR: pilih printer dulu ya",
-                                alamat, "", BluetoothDevice.BOND_NONE, null));
-                        return;
-                    }
-                    new Thread(() -> hubungkanProses(adapter, alamat, cb)).start();
                 });
             } catch (Throwable e) {
                 String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
@@ -862,99 +888,121 @@ public class MainActivity extends BridgeActivity {
             hubungkanPerangkat(mac, callback);
         }
 
-        /* Cari perangkat Bluetooth Classic. Callback dipanggil bertahap; selesai=true menandai akhir. */
+        /* Cari Bluetooth klasik + BLE. Semua exception ditangani supaya WebView tidak
+           menampilkan "error invoking" generik. */
         @JavascriptInterface
         public void cariPerangkat(String callback) {
             final String cb = namaCallback(callback);
-            if (!originDiizinkan()) {
-                kirimScan(cb, false, "ERROR: halaman tidak diizinkan", new JSONArray(), true);
-                return;
-            }
-            if (!izinScan()) {
-                mintaIzinBluetoothJikaPerlu();
-                kirimScan(cb, false,
-                        "ERROR: izin Bluetooth/lokasi belum diberikan. Izinkan lalu tekan lagi.",
-                        new JSONArray(), true);
-                return;
-            }
-            final BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-            if (adapter == null || !adapter.isEnabled()) {
-                kirimScan(cb, false, "ERROR: Bluetooth masih mati", new JSONArray(), true);
-                return;
-            }
-            if (adapter.isDiscovering()) adapter.cancelDiscovery();
-            hentikanScan();
-
-            final JSONArray perangkat = daftarPerangkat(adapter);
-            final Map<String, Boolean> dilihat = new HashMap<>();
-            for (int i = 0; i < perangkat.length(); i++) {
-                try { dilihat.put(perangkat.getJSONObject(i).getString("mac"), true); }
-                catch (Exception ignored) {}
-            }
-            final boolean[] selesaiDikirim = {false};
-            kirimScan(cb, true, "Mencari printer Bluetooth & BLE...", perangkat, false);
-            daftarBleTerakhir = new JSONArray();
-            mulaiScanBle(adapter, cb, perangkat, dilihat);
-
-            final IntentFilter filter = new IntentFilter();
-            filter.addAction(BluetoothDevice.ACTION_FOUND);
-            filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-
-            penerimaScan = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    String aksi = intent.getAction();
-                    if (BluetoothDevice.ACTION_FOUND.equals(aksi)) {
-                        BluetoothDevice d;
-                        if (Build.VERSION.SDK_INT >= 33) {
-                            d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
-                        } else {
-                            d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                        }
-                        if (d == null || d.getAddress() == null || dilihat.containsKey(d.getAddress())) return;
-                        dilihat.put(d.getAddress(), true);
-                        String nama = d.getName() == null ? d.getAddress() : d.getName();
-                        JSONObject o = new JSONObject();
-                        try {
-                            o.put("nama", nama);
-                            o.put("mac", d.getAddress());
-                            o.put("terpasang", d.getBondState() == BluetoothDevice.BOND_BONDED);
-                            o.put("bond", statusBond(d.getBondState()));
-                            perangkat.put(o);
-                        } catch (Exception ignored) {}
-                        kirimScan(cb, true, "Ditemukan: " + nama, perangkat, false);
-                    } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(aksi)) {
-                        if (selesaiDikirim[0]) return;
-                        selesaiDikirim[0] = true;
-                        hentikanScan();
-                        kirimScan(cb, true, "OK: pencarian selesai", perangkat, true);
-                    }
-                }
-            };
             try {
-                if (Build.VERSION.SDK_INT >= 33) {
-                    registerReceiver(penerimaScan, filter, Context.RECEIVER_EXPORTED);
-                } else {
-                    registerReceiver(penerimaScan, filter);
+                if (!originDiizinkan()) {
+                    kirimScan(cb, false, "ERROR: halaman tidak diizinkan", new JSONArray(), true);
+                    return;
                 }
-                if (!adapter.startDiscovery()) {
-                    selesaiDikirim[0] = true;
-                    hentikanScan();
-                    kirimScan(cb, false, "ERROR: Bluetooth discovery gagal dimulai", perangkat, true);
+                if (!izinBluetooth() || !izinScan()) {
+                    mintaIzinBluetoothJikaPerlu();
+                    kirimScan(cb, false,
+                            "ERROR: izin Bluetooth/lokasi belum diberikan. Izinkan lalu tekan lagi.",
+                            new JSONArray(), true);
+                    return;
                 }
-            } catch (SecurityException e) {
-                selesaiDikirim[0] = true;
-                hentikanScan();
-                kirimScan(cb, false, "ERROR: izin Bluetooth belum diberikan", perangkat, true);
-            }
-            new Handler(getMainLooper()).postDelayed(() -> {
-                if (selesaiDikirim[0]) return;
-                selesaiDikirim[0] = true;
+                final BluetoothAdapter adapter = adapterBluetooth();
+                if (adapter == null) {
+                    kirimScan(cb, false, "ERROR: Bluetooth tidak tersedia di HP ini", new JSONArray(), true);
+                    return;
+                }
+                if (!adapter.isEnabled()) {
+                    kirimScan(cb, false, "ERROR: Bluetooth masih mati. Nyalakan dulu ya", new JSONArray(), true);
+                    return;
+                }
                 try { if (adapter.isDiscovering()) adapter.cancelDiscovery(); }
                 catch (Exception ignored) {}
                 hentikanScan();
-                kirimScan(cb, true, "OK: pencarian dihentikan otomatis", perangkat, true);
-            }, 20000);
+
+                final JSONArray perangkat = daftarPerangkat(adapter);
+                final Map<String, Boolean> dilihat = new HashMap<>();
+                for (int i = 0; i < perangkat.length(); i++) {
+                    try { dilihat.put(perangkat.getJSONObject(i).getString("mac"), true); }
+                    catch (Exception ignored) {}
+                }
+                final boolean[] selesaiDikirim = {false};
+                kirimScan(cb, true, "Mencari printer Bluetooth & BLE...", perangkat, false);
+                daftarBleTerakhir = new JSONArray();
+                mulaiScanBle(adapter, cb, perangkat, dilihat);
+
+                final IntentFilter filter = new IntentFilter();
+                filter.addAction(BluetoothDevice.ACTION_FOUND);
+                filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+
+                penerimaScan = new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        try {
+                            String aksi = intent.getAction();
+                            if (BluetoothDevice.ACTION_FOUND.equals(aksi)) {
+                                BluetoothDevice d;
+                                if (Build.VERSION.SDK_INT >= 33) {
+                                    d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
+                                } else {
+                                    d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                                }
+                                if (d == null || d.getAddress() == null || dilihat.containsKey(d.getAddress())) return;
+                                dilihat.put(d.getAddress(), true);
+                                String nama = d.getName() == null ? d.getAddress() : d.getName();
+                                JSONObject o = new JSONObject();
+                                try {
+                                    o.put("nama", nama);
+                                    o.put("mac", d.getAddress());
+                                    o.put("terpasang", d.getBondState() == BluetoothDevice.BOND_BONDED);
+                                    o.put("bond", statusBond(d.getBondState()));
+                                    perangkat.put(o);
+                                } catch (Exception ignored) {}
+                                kirimScan(cb, true, "Ditemukan: " + nama, perangkat, false);
+                            } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(aksi)) {
+                                if (selesaiDikirim[0]) return;
+                                selesaiDikirim[0] = true;
+                                hentikanScan();
+                                kirimScan(cb, true, "OK: pencarian selesai", perangkat, true);
+                            }
+                        } catch (Throwable e) {
+                            if (!selesaiDikirim[0]) {
+                                selesaiDikirim[0] = true;
+                                kirimScan(cb, false, "ERROR: terima hasil scan gagal ("
+                                        + e.getClass().getSimpleName() + ")", perangkat, true);
+                            }
+                        }
+                    }
+                };
+                try {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        registerReceiver(penerimaScan, filter, Context.RECEIVER_EXPORTED);
+                    } else {
+                        registerReceiver(penerimaScan, filter);
+                    }
+                    if (!adapter.startDiscovery()) {
+                        selesaiDikirim[0] = true;
+                        hentikanScan();
+                        kirimScan(cb, true, "Discovery tidak bisa dimulai; memakai hasil BLE/perangkat terpasang",
+                                perangkat, true);
+                    }
+                } catch (Throwable e) {
+                    selesaiDikirim[0] = true;
+                    hentikanScan();
+                    kirimScan(cb, true, "Discovery gagal; memakai hasil BLE/perangkat terpasang ("
+                            + e.getClass().getSimpleName() + ")", perangkat, true);
+                }
+                new Handler(getMainLooper()).postDelayed(() -> {
+                    if (selesaiDikirim[0]) return;
+                    selesaiDikirim[0] = true;
+                    try { if (adapter.isDiscovering()) adapter.cancelDiscovery(); }
+                    catch (Exception ignored) {}
+                    hentikanScan();
+                    kirimScan(cb, true, "OK: pencarian selesai", perangkat, true);
+                }, 12000);
+            } catch (Throwable e) {
+                hentikanScan();
+                String pesan = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                kirimScan(cb, false, "ERROR: cari perangkat gagal (" + pesan + ")", new JSONArray(), true);
+            }
         }
 
         @JavascriptInterface
